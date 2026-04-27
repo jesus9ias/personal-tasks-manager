@@ -1,0 +1,62 @@
+import { useState, useEffect, useCallback } from 'react';
+import { api } from '../lib/api';
+import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
+
+interface UseTasksResult {
+  tasks: Task[];
+  loading: boolean;
+  error: string | null;
+  createTask: (input: CreateTaskInput) => Promise<void>;
+  updateTask: (id: string, input: UpdateTaskInput) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  addComment: (taskId: string, text: string) => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+export function useTasks(authenticated: boolean): UseTasksResult {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setTasks(await api.getTasks());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authenticated) refresh();
+  }, [authenticated, refresh]);
+
+  const createTask = async (input: CreateTaskInput) => {
+    const task = await api.createTask(input);
+    setTasks((prev) => [...prev, task]);
+  };
+
+  const updateTask = async (id: string, input: UpdateTaskInput) => {
+    const updated = await api.updateTask(id, input);
+    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+  };
+
+  const deleteTask = async (id: string) => {
+    await api.deleteTask(id);
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const addComment = async (taskId: string, text: string) => {
+    const comment = await api.addComment(taskId, text);
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, comments: [...t.comments, comment] } : t,
+      ),
+    );
+  };
+
+  return { tasks, loading, error, createTask, updateTask, deleteTask, addComment, refresh };
+}

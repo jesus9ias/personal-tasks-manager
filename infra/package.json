@@ -1,0 +1,21 @@
+{
+  "name": "personal-tasks-manager-infra",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "cdk deploy --require-approval never",
+    "diff": "cdk diff",
+    "synth": "cdk synth"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.148.0",
+    "constructs": "^10.3.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "aws-cdk": "^2.148.0",
+    "typescript": "^5.5.3"
+  }
+}

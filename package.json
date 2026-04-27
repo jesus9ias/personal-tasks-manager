@@ -1,0 +1,15 @@
+{
+  "name": "personal-tasks-manager",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "infra"
+  ],
+  "scripts": {
+    "frontend": "npm -w frontend run dev",
+    "backend:build": "npm -w backend run build",
+    "infra:deploy": "npm -w infra run deploy",
+    "infra:diff": "npm -w infra run diff"
+  }
+}

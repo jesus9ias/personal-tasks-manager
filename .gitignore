@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+cdk.out/
+*.js.map
+frontend/dist/
+backend/dist/
+
+# CDK context cache — gitignored because this is a public repo (contains AWS Account ID in cache keys)
+# CDK will re-fetch context values from AWS on each synth/diff/deploy (requires credentials)
+infra/cdk.context.json
+
+# Infra environment config — copy infra/.env.example to infra/.env to configure
+infra/.env
