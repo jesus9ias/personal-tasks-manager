@@ -26,7 +26,7 @@ export class ApiConstruct extends Construct {
     const backendDir = path.join(__dirname, '..', '..', 'backend');
 
     const commonLambdaProps: Partial<lambdaNodejs.NodejsFunctionProps> = {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       timeout: Duration.seconds(10),
       environment: { TABLE_NAME: props.table.tableName },
       bundling: { minify: true, sourceMap: false },
