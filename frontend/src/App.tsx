@@ -32,7 +32,7 @@ export default function App() {
     return (
       <div id="app">
         <div className="login-screen">
-          <h1>Tablero de tareas</h1>
+          <h1>Tablero de Tareas</h1>
           <p>Inicia sesión para acceder a tu tablero.</p>
           <button className="btn btn-primary" onClick={login}>
             Continuar con Google
