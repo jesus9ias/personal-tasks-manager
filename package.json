@@ -10,6 +10,8 @@
     "frontend": "npm -w frontend run dev",
     "backend:build": "npm -w backend run build",
     "infra:deploy": "npm -w infra run deploy",
-    "infra:diff": "npm -w infra run diff"
+    "infra:diff": "npm -w infra run diff",
+    "db:export": "node scripts/dynamo-export.mjs",
+    "db:import": "node scripts/dynamo-import.mjs"
   }
 }
