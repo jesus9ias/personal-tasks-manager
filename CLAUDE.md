@@ -11,7 +11,7 @@ Gestor personal de tareas con tablero Kanban. App full-stack serverless en AWS d
 ```
 personal-tasks-manager/
 ├── frontend/          React 18 + Vite (TypeScript)
-├── backend/           AWS Lambda handlers (TypeScript, Node 20)
+├── backend/           AWS Lambda handlers (TypeScript, Node 24)
 ├── infra/             AWS CDK v2 (TypeScript)
 ├── scripts/           Utilidades locales (export/import DynamoDB)
 ├── .github/workflows/ CI/CD GitHub Actions

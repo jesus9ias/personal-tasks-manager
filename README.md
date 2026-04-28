@@ -7,7 +7,7 @@ Gestor personal de tareas con tablero Kanban. App full-stack serverless en AWS, 
 | Capa | Tecnología |
 |---|---|
 | Frontend | React 18 + Vite + TypeScript |
-| Backend | AWS Lambda (Node 20, TypeScript) |
+| Backend | AWS Lambda (Node 24, TypeScript) |
 | Base de datos | DynamoDB (single-table) |
 | Auth | AWS Cognito + Google OAuth2 (PKCE) |
 | Infra como código | AWS CDK v2 (TypeScript) |
@@ -100,7 +100,7 @@ personal-tasks-manager/
 
 ## Requisitos previos
 
-- Node.js 20+
+- Node.js 24+
 - AWS CLI configurado (`aws configure`)
 - Una cuenta de AWS con una hosted zone en Route53 para tu dominio
 - Una app de Google Cloud con OAuth2 habilitado
