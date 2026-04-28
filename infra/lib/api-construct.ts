@@ -69,6 +69,6 @@ export class ApiConstruct extends Construct {
 
     this.apiUrl = api.url!;
 
-    new CfnOutput(this, 'ApiUrl', { value: this.apiUrl, exportName: 'ApiUrl' });
+    new CfnOutput(this, 'ApiUrl', { value: this.apiUrl, exportName: 'PersonalTasksManager-ApiUrl' });
   }
 }

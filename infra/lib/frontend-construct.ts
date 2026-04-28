@@ -55,7 +55,7 @@ export class FrontendConstruct extends Construct {
       target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(this.distribution)),
     });
 
-    new CfnOutput(this, 'BucketName', { value: this.bucket.bucketName, exportName: 'FrontendBucket' });
-    new CfnOutput(this, 'DistributionId', { value: this.distribution.distributionId, exportName: 'DistributionId' });
+    new CfnOutput(this, 'BucketName', { value: this.bucket.bucketName, exportName: 'PersonalTasksManager-FrontendBucket' });
+    new CfnOutput(this, 'DistributionId', { value: this.distribution.distributionId, exportName: 'PersonalTasksManager-DistributionId' });
   }
 }

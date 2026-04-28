@@ -67,7 +67,7 @@ export class AuthConstruct extends Construct {
 
     this.userPoolClient.node.addDependency(googleIdP);
 
-    new CfnOutput(this, 'CognitoDomain', { value: this.cognitoDomain, exportName: 'CognitoDomain' });
-    new CfnOutput(this, 'UserPoolClientId', { value: this.userPoolClient.userPoolClientId, exportName: 'UserPoolClientId' });
+    new CfnOutput(this, 'CognitoDomain', { value: this.cognitoDomain, exportName: 'PersonalTasksManager-CognitoDomain' });
+    new CfnOutput(this, 'UserPoolClientId', { value: this.userPoolClient.userPoolClientId, exportName: 'PersonalTasksManager-UserPoolClientId' });
   }
 }
