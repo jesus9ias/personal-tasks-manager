@@ -4,15 +4,16 @@ import { STATES } from '../types';
 
 interface Props {
   task?: Task;
+  initialStatus?: TaskStatus;
   onSave: (input: CreateTaskInput) => Promise<void>;
   onDelete?: () => Promise<void>;
   onClose: () => void;
 }
 
-export function TaskModal({ task, onSave, onDelete, onClose }: Props) {
+export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Props) {
   const [title, setTitle] = useState(task?.title ?? '');
   const [desc, setDesc] = useState(task?.desc ?? '');
-  const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'Backlog');
+  const [status, setStatus] = useState<TaskStatus>(task?.status ?? initialStatus ?? 'Backlog');
   const [tipo, setTipo] = useState<TaskType>(task?.tipo ?? 'unica');
   const [deadline, setDeadline] = useState(task?.deadline ?? '');
   const [nextDate, setNextDate] = useState(task?.nextDate ?? '');

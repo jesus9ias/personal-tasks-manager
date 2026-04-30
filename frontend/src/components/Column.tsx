@@ -6,16 +6,26 @@ interface Props {
   status: TaskStatus;
   tasks: Task[];
   onCardClick: (task: Task) => void;
+  onAdd: () => void;
 }
 
-export function Column({ status, tasks, onCardClick }: Props) {
+export function Column({ status, tasks, onCardClick, onAdd }: Props) {
   return (
     <div className="col">
       <div className="col-header">
         <span className="col-title" style={{ color: STATE_COLORS[status] }}>
           {status}
         </span>
-        <span className="col-count">{tasks.length}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span className="col-count">{tasks.length}</span>
+          <button
+            className="col-add-btn"
+            onClick={onAdd}
+            title={`Nueva tarea en ${status}`}
+          >
+            +
+          </button>
+        </span>
       </div>
       {tasks.length === 0 && <div className="empty-col">Sin tareas</div>}
       {tasks.map((task) => (

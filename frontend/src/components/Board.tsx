@@ -1,4 +1,4 @@
-import type { Task } from '../types';
+import type { Task, TaskStatus } from '../types';
 import { STATES } from '../types';
 import { Column } from './Column';
 
@@ -6,10 +6,11 @@ interface Props {
   tasks: Task[];
   onCardClick: (task: Task) => void;
   onNewTask: () => void;
+  onAddToColumn: (status: TaskStatus) => void;
   onLogout: () => void;
 }
 
-export function Board({ tasks, onCardClick, onNewTask, onLogout }: Props) {
+export function Board({ tasks, onCardClick, onNewTask, onAddToColumn, onLogout }: Props) {
   const byState = Object.fromEntries(
     STATES.map((s) => [s, tasks.filter((t) => t.status === s)]),
   ) as Record<string, Task[]>;
@@ -27,7 +28,7 @@ export function Board({ tasks, onCardClick, onNewTask, onLogout }: Props) {
       </div>
       <div className="board">
         {STATES.map((s) => (
-          <Column key={s} status={s} tasks={byState[s]} onCardClick={onCardClick} />
+          <Column key={s} status={s} tasks={byState[s]} onCardClick={onCardClick} onAdd={() => onAddToColumn(s)} />
         ))}
       </div>
     </>

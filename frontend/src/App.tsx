@@ -8,7 +8,7 @@ import type { Task, TaskStatus, CreateTaskInput } from './types';
 
 type Modal =
   | { kind: 'none' }
-  | { kind: 'new' }
+  | { kind: 'new'; initialStatus?: TaskStatus }
   | { kind: 'edit'; task: Task }
   | { kind: 'detail'; task: Task };
 
@@ -67,11 +67,13 @@ export default function App() {
         tasks={tasks}
         onCardClick={(task) => setModal({ kind: 'detail', task })}
         onNewTask={() => setModal({ kind: 'new' })}
+        onAddToColumn={(status) => setModal({ kind: 'new', initialStatus: status })}
         onLogout={logout}
       />
 
       {modal.kind === 'new' && (
         <TaskModal
+          initialStatus={modal.initialStatus}
           onSave={async (input: CreateTaskInput) => { await createTask(input); }}
           onClose={() => setModal({ kind: 'none' })}
         />
