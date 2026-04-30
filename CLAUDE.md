@@ -192,12 +192,6 @@ El workflow de infra escribe `infra/.env` en tiempo de ejecución a partir de es
 
 ---
 
-## Coexistencia con KanbanStack
-
-Existe un stack anterior `KanbanStack` en la misma cuenta/región. **No modificarlo.** Todos los nombres de recursos y CloudFormation exports de este proyecto usan el prefijo `PersonalTasksManager-` para evitar colisiones.
-
----
-
 ## Decisiones de diseño relevantes
 
 - **Single-table DynamoDB**: todas las entidades en una sola tabla, distinguidas por el patrón `sk`.

@@ -16,6 +16,26 @@ function fmt(dateStr?: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const INACTIVE: TaskStatus[] = ['Pausado', 'Finalizado', 'Cancelado'];
+
+function dateUrgency(dateStr?: string, status?: TaskStatus): 'warning' | 'alert' | 'overdue' | null {
+  if (!dateStr || !status || INACTIVE.includes(status)) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const date = new Date(dateStr + 'T00:00:00');
+  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return 'overdue';
+  if (diff === 0) return 'alert';
+  if (diff <= 5) return 'warning';
+  return null;
+}
+
+const URGENCY: Record<'warning' | 'alert' | 'overdue', { icon: string; title: string }> = {
+  warning: { icon: '⚠️', title: 'Faltan 5 días o menos' },
+  alert:   { icon: '🔴', title: 'Vence hoy' },
+  overdue: { icon: '🚨', title: 'Fecha vencida' },
+};
+
 export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose }: Props) {
   const commentRef = useRef<HTMLInputElement>(null);
 
@@ -70,18 +90,30 @@ export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose
           </div>
         </div>
 
-        {task.tipo === 'unica' && task.deadline && (
-          <div className="detail-section">
-            <div className="detail-label">Fecha límite</div>
-            <div className="detail-value">{fmt(task.deadline)}</div>
-          </div>
-        )}
-        {task.tipo === 'recurrente' && task.nextDate && (
-          <div className="detail-section">
-            <div className="detail-label">Siguiente fecha</div>
-            <div className="detail-value">{fmt(task.nextDate)}</div>
-          </div>
-        )}
+        {task.tipo === 'unica' && task.deadline && (() => {
+          const u = dateUrgency(task.deadline, task.status);
+          return (
+            <div className="detail-section">
+              <div className="detail-label">Fecha límite</div>
+              <div className="detail-value">
+                {fmt(task.deadline)}
+                {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
+              </div>
+            </div>
+          );
+        })()}
+        {task.tipo === 'recurrente' && task.nextDate && (() => {
+          const u = dateUrgency(task.nextDate, task.status);
+          return (
+            <div className="detail-section">
+              <div className="detail-label">Siguiente fecha</div>
+              <div className="detail-value">
+                {fmt(task.nextDate)}
+                {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="detail-section">
           <div className="detail-label">Comentarios</div>
