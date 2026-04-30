@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { Task, TaskStatus } from '../types';
-import { STATES, STATE_BG, STATE_COLORS } from '../types';
+import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_TYPE_LABELS } from '../types';
+import { fmt, dateUrgency } from '../lib/utils';
 
 interface Props {
   task: Task;
@@ -9,32 +10,6 @@ interface Props {
   onEdit: () => void;
   onClose: () => void;
 }
-
-function fmt(dateStr?: string): string {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-const INACTIVE: TaskStatus[] = ['Pausado', 'Finalizado', 'Cancelado'];
-
-function dateUrgency(dateStr?: string, status?: TaskStatus): 'warning' | 'alert' | 'overdue' | null {
-  if (!dateStr || !status || INACTIVE.includes(status)) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const date = new Date(dateStr + 'T00:00:00');
-  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return 'overdue';
-  if (diff === 0) return 'alert';
-  if (diff <= 5) return 'warning';
-  return null;
-}
-
-const URGENCY: Record<'warning' | 'alert' | 'overdue', { icon: string; title: string }> = {
-  warning: { icon: '⚠️', title: 'Faltan 5 días o menos' },
-  alert:   { icon: '🔴', title: 'Vence hoy' },
-  overdue: { icon: '🚨', title: 'Fecha vencida' },
-};
 
 export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose }: Props) {
   const commentRef = useRef<HTMLInputElement>(null);
@@ -82,7 +57,7 @@ export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose
         <div className="row2" style={{ marginBottom: '14px' }}>
           <div>
             <div className="detail-label">Tipo</div>
-            <div className="detail-value">{task.tipo === 'unica' ? 'Única' : 'Recurrente'}</div>
+            <div className="detail-value">{TASK_TYPE_LABELS[task.tipo]}</div>
           </div>
           <div>
             <div className="detail-label">Creado</div>

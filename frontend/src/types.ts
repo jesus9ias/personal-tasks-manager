@@ -67,3 +67,20 @@ export const STATE_BG: Record<TaskStatus, string> = {
   Finalizado: '#E1F5EE',
   Cancelado: '#FCEBEB',
 };
+
+export type UrgencyLevel = 'warning' | 'alert' | 'overdue';
+
+export const INACTIVE_STATUSES: TaskStatus[] = ['Pausado', 'Finalizado', 'Cancelado'];
+
+export const URGENCY: Record<UrgencyLevel, { icon: string; title: string }> = {
+  warning: { icon: '⚠️', title: 'Faltan 5 días o menos' },
+  alert:   { icon: '🔴', title: 'Vence hoy' },
+  overdue: { icon: '🚨', title: 'Fecha vencida' },
+};
+
+export const TASK_TYPES: TaskType[] = ['unica', 'recurrente'];
+
+export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+  unica: 'Única',
+  recurrente: 'Recurrente',
+};

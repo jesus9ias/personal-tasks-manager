@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Task, CreateTaskInput, TaskStatus, TaskType } from '../types';
-import { STATES } from '../types';
+import { STATES, TASK_TYPES, TASK_TYPE_LABELS } from '../types';
 
 interface Props {
   task?: Task;
@@ -70,8 +70,7 @@ export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Pr
           <div className="field">
             <label>Tipo</label>
             <select value={tipo} onChange={(e) => setTipo(e.target.value as TaskType)}>
-              <option value="unica">Única</option>
-              <option value="recurrente">Recurrente</option>
+              {TASK_TYPES.map((t) => <option key={t} value={t}>{TASK_TYPE_LABELS[t]}</option>)}
             </select>
           </div>
         </div>
