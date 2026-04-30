@@ -144,7 +144,7 @@ export function signOut(): void {
   clearTokens();
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
-    logout_uri: REDIRECT_URI,
+    logout_uri: window.location.origin,
   });
   window.location.href = `${COGNITO_DOMAIN}/logout?${params}`;
 }

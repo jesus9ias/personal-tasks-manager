@@ -18,7 +18,7 @@ export function Board({ tasks, onCardClick, onNewTask, onAddToColumn, onLogout }
   return (
     <>
       <div className="toolbar">
-        <h2>Tablero de tareas</h2>
+        <h2>Administrador de tareas personales</h2>
         <button className="btn" onClick={onLogout} style={{ fontSize: '12px' }}>
           Salir
         </button>
