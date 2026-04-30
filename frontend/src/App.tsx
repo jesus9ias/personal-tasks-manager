@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
 import { Board } from './components/Board';
@@ -17,6 +17,15 @@ export default function App() {
   const { tasks, loading, createTask, updateTask, deleteTask, addComment } =
     useTasks(authenticated);
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
+
+  useEffect(() => {
+    if (modal.kind === 'none') return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setModal({ kind: 'none' });
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [modal.kind]);
 
   if (authLoading) {
     return (
