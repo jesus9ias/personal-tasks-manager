@@ -92,17 +92,6 @@ export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose
 
         <div className="detail-section">
           <div className="detail-label">Comentarios</div>
-          <div className="comment-list">
-            {task.comments.length === 0 && (
-              <div style={{ fontSize: '12px', color: '#aaa' }}>Sin comentarios aún</div>
-            )}
-            {task.comments.map((c) => (
-              <div key={c.id} className="comment-item">
-                {c.text}
-                <div className="comment-date">{fmt(c.date)}</div>
-              </div>
-            ))}
-          </div>
           <div className="add-comment">
             <input
               ref={commentRef}
@@ -112,6 +101,17 @@ export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose
             <button className="btn" style={{ fontSize: '12px', padding: '5px 10px' }} onClick={submitComment}>
               Agregar
             </button>
+          </div>
+          <div className="comment-list">
+            {task.comments.length === 0 && (
+              <div style={{ fontSize: '12px', color: '#aaa' }}>Sin comentarios aún</div>
+            )}
+            {[...task.comments].reverse().map((c) => (
+              <div key={c.id} className="comment-item">
+                {c.text}
+                <div className="comment-date">{fmt(c.date)}</div>
+              </div>
+            ))}
           </div>
         </div>
 
