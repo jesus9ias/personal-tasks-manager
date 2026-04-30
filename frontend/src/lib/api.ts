@@ -1,5 +1,5 @@
 import { getIdToken } from './auth';
-import type { Task, CreateTaskInput, UpdateTaskInput, Comment } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, Comment, Label } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -43,4 +43,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ text }),
     }),
+
+  getAllLabelNames: () => request<string[]>('/labels'),
+
+  getTaskLabels: (taskId: string) => request<Label[]>(`/tasks/${taskId}/labels`),
+
+  addLabel: (taskId: string, name: string) =>
+    request<Label>(`/tasks/${taskId}/labels`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  removeLabel: (taskId: string, labelId: string) =>
+    request<void>(`/tasks/${taskId}/labels/${labelId}`, { method: 'DELETE' }),
 };

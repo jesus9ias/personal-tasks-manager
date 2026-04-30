@@ -44,8 +44,15 @@ export class ApiConstruct extends Construct {
       handler: 'handler',
     });
 
+    const labelsHandler = new lambdaNodejs.NodejsFunction(this, 'LabelsHandler', {
+      ...commonLambdaProps,
+      entry: path.join(backendDir, 'src', 'handlers', 'labels.ts'),
+      handler: 'handler',
+    });
+
     props.table.grantReadWriteData(tasksHandler);
     props.table.grantReadWriteData(commentsHandler);
+    props.table.grantReadWriteData(labelsHandler);
 
     const authorizer = new authorizers.HttpJwtAuthorizer('CognitoAuth', props.userPool.userPoolProviderUrl, {
       jwtAudience: [props.userPoolClient.userPoolClientId],
@@ -62,10 +69,14 @@ export class ApiConstruct extends Construct {
 
     const tasksIntegration = new integrations.HttpLambdaIntegration('TasksIntegration', tasksHandler);
     const commentsIntegration = new integrations.HttpLambdaIntegration('CommentsIntegration', commentsHandler);
+    const labelsIntegration = new integrations.HttpLambdaIntegration('LabelsIntegration', labelsHandler);
 
     api.addRoutes({ path: '/tasks', methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST], integration: tasksIntegration, authorizer });
     api.addRoutes({ path: '/tasks/{id}', methods: [apigwv2.HttpMethod.PUT, apigwv2.HttpMethod.DELETE], integration: tasksIntegration, authorizer });
     api.addRoutes({ path: '/tasks/{id}/comments', methods: [apigwv2.HttpMethod.POST], integration: commentsIntegration, authorizer });
+    api.addRoutes({ path: '/labels', methods: [apigwv2.HttpMethod.GET], integration: labelsIntegration, authorizer });
+    api.addRoutes({ path: '/tasks/{id}/labels', methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST], integration: labelsIntegration, authorizer });
+    api.addRoutes({ path: '/tasks/{id}/labels/{labelId}', methods: [apigwv2.HttpMethod.DELETE], integration: labelsIntegration, authorizer });
 
     this.apiUrl = api.url!;
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Task } from '../types';
 import { STATE_COLORS, URGENCY, TASK_TYPE_LABELS } from '../types';
 import { fmt, dateUrgency } from '../lib/utils';
@@ -8,8 +9,17 @@ interface Props {
 }
 
 export function Card({ task, onClick }: Props) {
+  const [dragging, setDragging] = useState(false);
+
   return (
-    <div className="card" onClick={onClick} style={{ borderLeft: `2px solid ${STATE_COLORS[task.status]}` }}>
+    <div
+      className={`card${dragging ? ' dragging' : ''}`}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); setDragging(true); }}
+      onDragEnd={() => setDragging(false)}
+      onClick={onClick}
+      style={{ borderLeft: `2px solid ${STATE_COLORS[task.status]}` }}
+    >
       <div className="card-title">{task.title}</div>
       {task.desc && <div className="card-desc">{task.desc}</div>}
       <div className="card-meta">

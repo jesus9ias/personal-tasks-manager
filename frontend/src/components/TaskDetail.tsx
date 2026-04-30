@@ -1,18 +1,60 @@
-import { useRef } from 'react';
-import type { Task, TaskStatus } from '../types';
+import { useRef, useState, useEffect } from 'react';
+import type { Task, TaskStatus, Label } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_TYPE_LABELS } from '../types';
 import { fmt, dateUrgency } from '../lib/utils';
+import { api } from '../lib/api';
+
+const LABEL_REGEX = /^[a-zA-Z0-9\-_ ]+$/;
 
 interface Props {
   task: Task;
+  allLabelNames: string[];
+  onLabelAdded: (name: string) => void;
   onChangeStatus: (status: TaskStatus) => Promise<void>;
   onAddComment: (text: string) => Promise<void>;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose }: Props) {
+export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, onAddComment, onEdit, onClose }: Props) {
   const commentRef = useRef<HTMLInputElement>(null);
+  const labelInputRef = useRef<HTMLInputElement>(null);
+
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [labelInput, setLabelInput] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    api.getTaskLabels(task.id).then(setLabels).catch(() => {});
+  }, [task.id]);
+
+  const labelInputTrimmed = labelInput.trim();
+  const isValidInput = labelInputTrimmed.length > 0
+    && labelInputTrimmed.length <= 50
+    && LABEL_REGEX.test(labelInputTrimmed);
+  const alreadyOnTask = labels.some((l) => l.name.toLowerCase() === labelInputTrimmed.toLowerCase());
+
+  const suggestions = allLabelNames.filter(
+    (n) =>
+      n.toLowerCase().includes(labelInputTrimmed.toLowerCase()) &&
+      !labels.some((l) => l.name.toLowerCase() === n.toLowerCase()),
+  );
+
+  async function handleAddLabel(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 50 || !LABEL_REGEX.test(trimmed)) return;
+    if (labels.some((l) => l.name.toLowerCase() === trimmed.toLowerCase())) return;
+    const label = await api.addLabel(task.id, trimmed);
+    setLabels((prev) => [...prev, label]);
+    onLabelAdded(label.name);
+    setLabelInput('');
+    setShowSuggestions(false);
+  }
+
+  async function handleRemoveLabel(labelId: string) {
+    await api.removeLabel(task.id, labelId);
+    setLabels((prev) => prev.filter((l) => l.id !== labelId));
+  }
 
   async function submitComment() {
     const text = commentRef.current?.value.trim();
@@ -89,6 +131,56 @@ export function TaskDetail({ task, onChangeStatus, onAddComment, onEdit, onClose
             </div>
           );
         })()}
+
+        <div className="detail-section">
+          <div className="detail-label">Labels</div>
+          <div className="label-list">
+            {labels.map((l) => (
+              <span key={l.id} className="label-chip">
+                {l.name}
+                <button onClick={() => handleRemoveLabel(l.id)} title="Quitar label">×</button>
+              </span>
+            ))}
+          </div>
+          <div className="label-input-wrap">
+            <input
+              ref={labelInputRef}
+              className="label-input"
+              value={labelInput}
+              placeholder="Agregar label..."
+              onChange={(e) => { setLabelInput(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && isValidInput && !alreadyOnTask) handleAddLabel(labelInput);
+                if (e.key === 'Escape') { setLabelInput(''); setShowSuggestions(false); }
+              }}
+              maxLength={50}
+            />
+            {showSuggestions && labelInputTrimmed && (
+              <div className="label-suggestions">
+                {suggestions.map((n) => (
+                  <div key={n} className="label-suggestion-item" onMouseDown={() => handleAddLabel(n)}>
+                    {n}
+                  </div>
+                ))}
+                {isValidInput && !alreadyOnTask && !suggestions.some((n) => n.toLowerCase() === labelInputTrimmed.toLowerCase()) && (
+                  <div className="label-suggestion-item label-suggestion-new" onMouseDown={() => handleAddLabel(labelInput)}>
+                    Crear «{labelInputTrimmed}»
+                  </div>
+                )}
+                {!isValidInput && labelInputTrimmed && (
+                  <div className="label-suggestion-empty">
+                    {labelInputTrimmed.length > 50 ? 'Máximo 50 caracteres' : 'Solo letras, números, espacios, - y _'}
+                  </div>
+                )}
+                {alreadyOnTask && (
+                  <div className="label-suggestion-empty">Ya está en esta tarea</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="detail-section">
           <div className="detail-label">Comentarios</div>

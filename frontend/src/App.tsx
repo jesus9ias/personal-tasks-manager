@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
+import { useLabels } from './hooks/useLabels';
 import { Board } from './components/Board';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
@@ -16,6 +17,7 @@ export default function App() {
   const { authenticated, loading: authLoading, login, logout } = useAuth();
   const { tasks, loading, createTask, updateTask, deleteTask, addComment } =
     useTasks(authenticated);
+  const { allLabelNames, registerLabel } = useLabels(authenticated);
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function App() {
         onCardClick={(task) => setModal({ kind: 'detail', task })}
         onNewTask={() => setModal({ kind: 'new' })}
         onAddToColumn={(status) => setModal({ kind: 'new', initialStatus: status })}
+        onMoveTask={(taskId, status) => updateTask(taskId, { status })}
         onLogout={logout}
       />
 
@@ -100,6 +103,8 @@ export default function App() {
       {modal.kind === 'detail' && activeTask && (
         <TaskDetail
           task={activeTask}
+          allLabelNames={allLabelNames}
+          onLabelAdded={registerLabel}
           onChangeStatus={(status) => handleChangeStatus(activeTask.id, status)}
           onAddComment={(text) => addComment(activeTask.id, text)}
           onEdit={() => setModal({ kind: 'edit', task: activeTask })}

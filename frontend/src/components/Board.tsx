@@ -11,10 +11,11 @@ interface Props {
   onCardClick: (task: Task) => void;
   onNewTask: () => void;
   onAddToColumn: (status: TaskStatus) => void;
+  onMoveTask: (taskId: string, status: TaskStatus) => void;
   onLogout: () => void;
 }
 
-export function Board({ tasks, onCardClick, onNewTask, onAddToColumn, onLogout }: Props) {
+export function Board({ tasks, onCardClick, onNewTask, onAddToColumn, onMoveTask, onLogout }: Props) {
   const [mode, setMode] = useState<BoardMode>(
     () => (localStorage.getItem(STORAGE_KEY) as BoardMode) ?? 'kanban',
   );
@@ -57,7 +58,7 @@ export function Board({ tasks, onCardClick, onNewTask, onAddToColumn, onLogout }
       {mode === 'kanban' ? (
         <div className="board">
           {STATES.map((s) => (
-            <Column key={s} status={s} tasks={byState[s]} onCardClick={onCardClick} onAdd={() => onAddToColumn(s)} />
+            <Column key={s} status={s} tasks={byState[s]} onCardClick={onCardClick} onAdd={() => onAddToColumn(s)} onMoveTask={(taskId) => onMoveTask(taskId, s)} />
           ))}
         </div>
       ) : (

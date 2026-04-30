@@ -14,6 +14,7 @@ const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 export function taskPK(sub: string) { return `USER#${sub}`; }
 export function taskSK(taskId: string) { return `TASK#${taskId}`; }
 export function commentSK(taskId: string, cid: string) { return `COMMENT#${taskId}#${cid}`; }
+export function labelSK(taskId: string, labelId: string) { return `LABEL#${taskId}#${labelId}`; }
 
 export function newId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

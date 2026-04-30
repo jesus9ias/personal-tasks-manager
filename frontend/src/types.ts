@@ -17,6 +17,11 @@ export interface Comment {
   date: string;
 }
 
+export interface Label {
+  id: string;
+  name: string;
+}
+
 export interface Task {
   id: string;
   title: string;
