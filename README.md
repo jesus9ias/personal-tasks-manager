@@ -43,7 +43,7 @@ Gestor personal de tareas con tablero Kanban. App full-stack serverless en AWS, 
                                ┌───────▼──────┐
                                │   DynamoDB   │
                                │ single-table │
-                               └─────────────┘
+                               └──────────────┘
 
   Cognito User Pool ──── Google IdP ──── OAuth2 PKCE ──── Browser
 ```
@@ -56,11 +56,21 @@ personal-tasks-manager/
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── auth.ts        OAuth2 PKCE flow + token management
-│   │   │   └── api.ts         REST client con auto-refresh de JWT
+│   │   │   ├── api.ts         REST client con auto-refresh de JWT
+│   │   │   └── utils.ts       Helpers: fmt(), dateUrgency()
 │   │   ├── hooks/
 │   │   │   ├── useAuth.ts     Estado de autenticación
 │   │   │   └── useTasks.ts    CRUD de tareas + comentarios
-│   │   └── types.ts           Tipos compartidos (Task, Comment, TaskStatus)
+│   │   ├── components/
+│   │   │   ├── Board.tsx      Toolbar + toggle de modo + layout condicional
+│   │   │   ├── Column.tsx     Columna del modo Kanban
+│   │   │   ├── Card.tsx       Tarjeta de tarea (modo Kanban)
+│   │   │   ├── ListView.tsx   Vista de lista con grupos colapsables
+│   │   │   ├── TaskDetail.tsx Modal de detalle de tarea
+│   │   │   └── TaskModal.tsx  Modal de creación y edición de tarea
+│   │   ├── types.ts           Tipos y constantes del dominio
+│   │   ├── App.tsx            Orquestador + estado de modales
+│   │   └── styles.css         Estilos globales + dark mode
 │   ├── .env.example           Template de variables de entorno
 │   └── .env.local             Variables locales — gitignoreado
 │
@@ -95,6 +105,69 @@ personal-tasks-manager/
 ├── CLAUDE.md                  Contexto técnico para Claude Code
 └── README.md                  Este archivo
 ```
+
+---
+
+## Funcionalidades
+
+### Modos del tablero
+
+El tablero tiene dos modos de visualización. El modo activo se guarda en `localStorage` y persiste entre sesiones.
+
+#### Modo Kanban
+Columnas horizontales scrolleables, una por cada estado. Cada tarjeta muestra:
+- Título y descripción (truncada a 2 líneas)
+- Badge de tipo (Única / Recurrente)
+- Fecha con icono de urgencia si aplica
+- Borde izquierdo en el color del estado
+
+El header de cada columna muestra el nombre del estado, el conteo de tarjetas y un botón `+` para crear una tarea directamente en ese estado.
+
+#### Modo Lista
+Vista vertical centrada, agrupada por estado en el mismo orden que el Kanban. Cada grupo es colapsable individualmente mediante el botón ▶/▼ de su header. El header de cada grupo también tiene el conteo y el botón `+`.
+
+Cada fila de tarea muestra: título | badge de tipo | fecha con icono de urgencia.
+
+### Indicadores de urgencia de fechas
+
+Aparecen en tarjetas (Kanban), filas (Lista) y modal de detalle. Solo se muestran si la tarea tiene fecha y su estado no es Pausado, Finalizado ni Cancelado.
+
+| Indicador | Condición |
+|---|---|
+| ⚠️ Faltan 5 días o menos | Vence en 1–5 días |
+| 🔴 Vence hoy | Vence hoy |
+| 🚨 Fecha vencida | La fecha ya pasó |
+
+### Modales de tarea
+
+Todos los modales se cierran con **Escape** o haciendo click fuera del modal.
+
+#### Nueva tarea
+Se abre desde el botón `+ Nueva tarea` del toolbar o desde el `+` de una columna/grupo (que preselecciona el estado).
+
+Campos:
+- **Nombre** (requerido)
+- **Descripción**
+- **Estado** — selector con todos los estados posibles
+- **Tipo** — Única o Recurrente
+- **Fecha límite** — visible solo si el tipo es Única
+- **Siguiente fecha** — visible solo si el tipo es Recurrente
+
+#### Detalle de tarea
+Se abre al hacer click en una tarjeta o en una fila de lista.
+
+Muestra:
+- Título con botón **Editar** en el header
+- Selector visual de estado: pills de todos los estados que al hacer click cambian el estado inmediatamente (sin necesidad de guardar)
+- Descripción
+- Tipo y fecha de creación
+- Fecha límite o siguiente fecha, con indicador de urgencia si corresponde
+- Sección de comentarios: input de agregar al principio, lista debajo ordenada del más reciente al más antiguo
+
+#### Edición de tarea
+Se abre desde el botón "Editar" del modal de detalle.
+
+Mismos campos que el modal de nueva tarea, prellenados con los valores actuales. Incluye botón **Eliminar** que borra la tarea permanentemente.
 
 ---
 
@@ -272,8 +345,8 @@ Tabla DynamoDB `personal-tasks-manager` con diseño single-table.
 | `desc` | string | Descripción |
 | `status` | TaskStatus | Estado actual |
 | `tipo` | `unica` \| `recurrente` | Tipo de tarea |
-| `deadline` | string (YYYY-MM-DD) | Fecha límite, opcional |
-| `nextDate` | string (YYYY-MM-DD) | Próxima fecha de recurrencia, opcional |
+| `deadline` | string (YYYY-MM-DD) | Fecha límite — solo para tareas únicas, opcional |
+| `nextDate` | string (YYYY-MM-DD) | Próxima fecha de recurrencia — solo para tareas recurrentes, opcional |
 | `createdAt` | string (YYYY-MM-DD) | Fecha de creación |
 
 ### Estados posibles (`TaskStatus`)

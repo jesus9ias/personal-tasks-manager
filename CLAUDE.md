@@ -18,6 +18,29 @@ personal-tasks-manager/
 └── package.json       Workspace raíz (npm workspaces)
 ```
 
+### Frontend — estructura detallada
+
+```
+frontend/src/
+├── lib/
+│   ├── auth.ts          OAuth2 PKCE flow + gestión de tokens
+│   ├── api.ts           REST client con auto-refresh de JWT
+│   └── utils.ts         Helpers compartidos: fmt(), dateUrgency()
+├── hooks/
+│   ├── useAuth.ts       Estado de autenticación
+│   └── useTasks.ts      CRUD de tareas + comentarios
+├── components/
+│   ├── Board.tsx        Toolbar + toggle de modo + renderizado condicional
+│   ├── Column.tsx       Columna del modo Kanban
+│   ├── Card.tsx         Tarjeta individual de tarea
+│   ├── ListView.tsx     Vista de lista con grupos colapsables por estado
+│   ├── TaskDetail.tsx   Modal de detalle/visualización de tarea
+│   └── TaskModal.tsx    Modal de creación y edición de tarea
+├── types.ts             Tipos y constantes compartidas del dominio
+├── App.tsx              Orquestador principal + estado de modales
+└── styles.css           Estilos globales (incluye dark mode)
+```
+
 ---
 
 ## Arquitectura AWS
@@ -67,12 +90,91 @@ Cognito User Pool (Google OAuth2) emite JWTs que valida API Gateway
 
 ---
 
-## Tipos de dominio (`frontend/src/types.ts`)
+## Tipos y constantes del dominio (`frontend/src/types.ts`)
 
 ```typescript
-TaskStatus: 'Backlog' | 'Planificación' | 'Ejecución' | 'Pausado' | 'Validación' | 'Finalizado' | 'Cancelado'
-TaskType:   'unica' | 'recurrente'
+BoardMode:    'kanban' | 'list'
+TaskStatus:   'Backlog' | 'Planificación' | 'Ejecución' | 'Pausado' | 'Validación' | 'Finalizado' | 'Cancelado'
+TaskType:     'unica' | 'recurrente'
+UrgencyLevel: 'warning' | 'alert' | 'overdue'
 ```
+
+**Constantes exportadas:**
+
+| Constante | Tipo | Descripción |
+|---|---|---|
+| `STATES` | `TaskStatus[]` | Lista ordenada de estados para renderizar columnas/grupos |
+| `STATE_COLORS` | `Record<TaskStatus, string>` | Color de texto por estado |
+| `STATE_BG` | `Record<TaskStatus, string>` | Color de fondo por estado |
+| `INACTIVE_STATUSES` | `TaskStatus[]` | Estados que desactivan los indicadores de urgencia: `['Pausado', 'Finalizado', 'Cancelado']` |
+| `URGENCY` | `Record<UrgencyLevel, {icon, title}>` | Icono y tooltip para cada nivel de urgencia de fecha |
+| `TASK_TYPES` | `TaskType[]` | Lista de tipos de tarea para select |
+| `TASK_TYPE_LABELS` | `Record<TaskType, string>` | Etiqueta de display: `unica → 'Única'`, `recurrente → 'Recurrente'` |
+
+**Helpers compartidos (`frontend/src/lib/utils.ts`):**
+
+| Función | Descripción |
+|---|---|
+| `fmt(dateStr?)` | Formatea una fecha YYYY-MM-DD a string legible en es-MX |
+| `dateUrgency(dateStr?, status?)` | Retorna `UrgencyLevel \| null` según proximidad de la fecha; devuelve `null` si el estado está en `INACTIVE_STATUSES` |
+
+---
+
+## Modos del tablero
+
+El modo activo se persiste en `localStorage` bajo la clave `board-view-mode`. El toggle está en el toolbar. Los dos modos disponibles son:
+
+### Modo Kanban (`'kanban'`)
+- Columnas horizontales scrolleables, una por cada `TaskStatus`.
+- Cada columna muestra sus tarjetas (`Card`) con título, descripción truncada, badge de tipo y fecha con icono de urgencia.
+- Header de columna: nombre del estado (en su color), conteo de tarjetas, botón `+` para crear tarea preseleccionando ese estado.
+
+### Modo Lista (`'list'`)
+- Vista vertical centrada (`max-width: 860px`, `margin: 0 auto`).
+- Un grupo colapsable por cada `TaskStatus`, en el mismo orden que el modo Kanban.
+- **Header de grupo:** botón ▶/▼ para colapsar, nombre del estado (en su color), conteo, botón `+`.
+- **Cuerpo del grupo:** filas de tarea con tres columnas: título | badge de tipo | fecha con icono de urgencia.
+- El estado de colapso es local al componente (no se persiste).
+- Click en cualquier fila abre el modal de detalle.
+
+---
+
+## Modales de tareas
+
+Todos los modales se cierran con **Escape** o haciendo click fuera del área del modal (en el overlay). La lógica de cierre vive en `App.tsx` mediante un `useEffect` que escucha `keydown` solo cuando hay un modal abierto.
+
+### Modal de nueva tarea
+- Se abre desde el botón `+ Nueva tarea` del toolbar (sin estado preseleccionado) o desde el botón `+` de una columna/grupo (con `initialStatus` preseleccionado).
+- Campos: **Nombre** (requerido), **Descripción**, **Estado** (select con todos los estados), **Tipo** (Única / Recurrente).
+- Si el tipo es `unica`, muestra el campo **Fecha límite**.
+- Si el tipo es `recurrente`, muestra el campo **Siguiente fecha**.
+- Al guardar llama a `POST /tasks` y cierra el modal.
+
+### Modal de detalle (`TaskDetail`)
+- Se abre al hacer click en una tarjeta (modo Kanban) o en una fila (modo Lista).
+- Muestra: título, selector visual de estado (pills clicables que cambian el estado en tiempo real vía `PUT /tasks/{id}`), descripción, tipo, fecha de creación, fecha límite o siguiente fecha con indicador de urgencia si aplica.
+- **Comentarios:** el input de agregar aparece primero; los comentarios se listan del más reciente al más antiguo. Envío con Enter o botón "Agregar".
+- Botón "Editar" en el header abre el modal de edición manteniendo la tarea activa.
+
+### Modal de edición (`TaskModal` con tarea existente)
+- Mismos campos que el modal de nueva tarea, prellenados con los valores actuales.
+- Botón **Eliminar** (rojo) llama a `DELETE /tasks/{id}` y cierra.
+- Botón **Guardar cambios** llama a `PUT /tasks/{id}` con los campos modificados.
+- El campo `deadline` se envía solo si `tipo === 'unica'`; `nextDate` solo si `tipo === 'recurrente'`.
+
+---
+
+## Indicadores de urgencia de fechas
+
+Calculados por `dateUrgency()` en `frontend/src/lib/utils.ts`. Solo aplican cuando la tarea tiene fecha y su estado no está en `INACTIVE_STATUSES`.
+
+| Nivel | Condición | Icono | Tooltip |
+|---|---|---|---|
+| `overdue` | La fecha ya pasó | 🚨 | Fecha vencida |
+| `alert` | Vence hoy | 🔴 | Vence hoy |
+| `warning` | Vence en 5 días o menos | ⚠️ | Faltan 5 días o menos |
+
+Se muestran en las tarjetas (modo Kanban), en las filas (modo Lista) y en el modal de detalle.
 
 ---
 
@@ -199,3 +301,6 @@ El workflow de infra escribe `infra/.env` en tiempo de ejecución a partir de es
 - **Lambda handlers sin framework**: sin Express ni Hono, routing manual por `method` + `pathParameters`.
 - **PKCE en el frontend**: el `client_secret` de Cognito no se usa (`generateSecret: false`), el flujo es seguro sin backend de auth.
 - **Tokens en localStorage**: decisión consciente para simplicidad — app de uso personal, no multi-tenant.
+- **Modo del tablero en localStorage**: persiste entre sesiones sin necesidad de backend; clave `board-view-mode`.
+- **Constantes centralizadas en `types.ts`**: todos los valores del dominio (colores, labels, listas de estados) viven en un solo lugar para evitar strings hardcodeados dispersos en componentes.
+- **Helpers compartidos en `lib/utils.ts`**: `fmt` y `dateUrgency` se usan en `Card`, `TaskDetail` y `ListView`; extraídos para evitar duplicación.
