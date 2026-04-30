@@ -1,3 +1,5 @@
+export type BoardMode = 'kanban' | 'list';
+
 export type TaskStatus =
   | 'Backlog'
   | 'Planificación'
