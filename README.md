@@ -60,13 +60,14 @@ personal-tasks-manager/
 │   │   │   └── utils.ts       Helpers: fmt(), dateUrgency()
 │   │   ├── hooks/
 │   │   │   ├── useAuth.ts     Estado de autenticación
-│   │   │   └── useTasks.ts    CRUD de tareas + comentarios
+│   │   │   ├── useTasks.ts    CRUD de tareas + comentarios
+│   │   │   └── useLabels.ts   Caché global de labels + carga en page load
 │   │   ├── components/
 │   │   │   ├── Board.tsx      Toolbar + toggle de modo + layout condicional
-│   │   │   ├── Column.tsx     Columna del modo Kanban
-│   │   │   ├── Card.tsx       Tarjeta de tarea (modo Kanban)
+│   │   │   ├── Column.tsx     Columna del modo Kanban (drop target)
+│   │   │   ├── Card.tsx       Tarjeta de tarea (draggable)
 │   │   │   ├── ListView.tsx   Vista de lista con grupos colapsables
-│   │   │   ├── TaskDetail.tsx Modal de detalle de tarea
+│   │   │   ├── TaskDetail.tsx Modal de detalle de tarea + gestión de labels
 │   │   │   └── TaskModal.tsx  Modal de creación y edición de tarea
 │   │   ├── types.ts           Tipos y constantes del dominio
 │   │   ├── App.tsx            Orquestador + estado de modales
@@ -78,7 +79,8 @@ personal-tasks-manager/
 │   └── src/
 │       ├── handlers/
 │       │   ├── tasks.ts       GET/POST/PUT/DELETE /tasks
-│       │   └── comments.ts    POST /tasks/{id}/comments
+│       │   ├── comments.ts    POST /tasks/{id}/comments
+│       │   └── labels.ts      GET /labels, GET+POST /tasks/{id}/labels, DELETE /tasks/{id}/labels/{labelId}
 │       └── lib/
 │           └── dynamo.ts      DynamoDB Document Client + helpers
 │
@@ -123,6 +125,8 @@ Columnas horizontales scrolleables, una por cada estado. Cada tarjeta muestra:
 
 El header de cada columna muestra el nombre del estado, el conteo de tarjetas y un botón `+` para crear una tarea directamente en ese estado.
 
+Las tarjetas son **arrastrables entre columnas** (drag and drop). Al soltar una tarjeta en otra columna su estado se actualiza automáticamente. La columna destino se resalta visualmente mientras hay una tarjeta encima.
+
 #### Modo Lista
 Vista vertical centrada, agrupada por estado en el mismo orden que el Kanban. Cada grupo es colapsable individualmente mediante el botón ▶/▼ de su header. El header de cada grupo también tiene el conteo y el botón `+`.
 
@@ -162,7 +166,18 @@ Muestra:
 - Descripción
 - Tipo y fecha de creación
 - Fecha límite o siguiente fecha, con indicador de urgencia si corresponde
+- Sección **Labels**: chips removibles con las labels de la tarea + input con autocompletado para agregar más (ver más abajo)
 - Sección de comentarios: input de agregar al principio, lista debajo ordenada del más reciente al más antiguo
+
+### Labels
+
+Cada tarea puede tener múltiples labels de texto libre. Las labels solo son gestionables desde el modal de detalle (no desde el de creación).
+
+**Autocompletado:** al abrir el modal de detalle se cargan los labels de esa tarea. Al escribir en el input de labels se muestran sugerencias basadas en todos los labels existentes del usuario, excluyendo los que ya están en la tarea. Si el nombre escrito no existe, aparece la opción «Crear `{nombre}`».
+
+**Validación:** máximo 50 caracteres, solo letras, números, espacios, guion (`-`) y guion bajo (`_`).
+
+**Caché:** la lista de todos los nombres de labels se carga una vez al iniciar la sesión (`GET /labels`) y se mantiene en memoria. Las labels creadas durante la sesión se agregan al caché sin consultar el backend de nuevo. Los labels de cada tarea se cargan individualmente al abrir su modal (`GET /tasks/{id}/labels`).
 
 #### Edición de tarea
 Se abre desde el botón "Editar" del modal de detalle.
@@ -335,6 +350,7 @@ Tabla DynamoDB `personal-tasks-manager` con diseño single-table.
 |---|---|---|
 | Tarea | `USER#{cognitoSub}` | `TASK#{taskId}` |
 | Comentario | `USER#{cognitoSub}` | `COMMENT#{taskId}#{cid}` |
+| Label | `USER#{cognitoSub}` | `LABEL#{taskId}#{labelId}` |
 
 ### Campos de tarea
 
@@ -376,6 +392,10 @@ Todas las rutas requieren `Authorization: Bearer <idToken>` (JWT de Cognito).
 | `PUT` | `/tasks/{id}` | Actualiza campos de una tarea |
 | `DELETE` | `/tasks/{id}` | Elimina una tarea |
 | `POST` | `/tasks/{id}/comments` | Agrega un comentario (`{ "text": "..." }`) |
+| `GET` | `/labels` | Lista todos los nombres de labels únicos del usuario |
+| `GET` | `/tasks/{id}/labels` | Lista las labels de una tarea |
+| `POST` | `/tasks/{id}/labels` | Agrega una label a una tarea (`{ "name": "..." }`) |
+| `DELETE` | `/tasks/{id}/labels/{labelId}` | Elimina una label de una tarea |
 
 ---
 

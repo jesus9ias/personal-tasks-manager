@@ -28,13 +28,14 @@ frontend/src/
 │   └── utils.ts         Helpers compartidos: fmt(), dateUrgency()
 ├── hooks/
 │   ├── useAuth.ts       Estado de autenticación
-│   └── useTasks.ts      CRUD de tareas + comentarios
+│   ├── useTasks.ts      CRUD de tareas + comentarios
+│   └── useLabels.ts     Caché de labels globales + carga en page load
 ├── components/
 │   ├── Board.tsx        Toolbar + toggle de modo + renderizado condicional
-│   ├── Column.tsx       Columna del modo Kanban
-│   ├── Card.tsx         Tarjeta individual de tarea
+│   ├── Column.tsx       Columna del modo Kanban (con drag-and-drop drop target)
+│   ├── Card.tsx         Tarjeta individual de tarea (draggable)
 │   ├── ListView.tsx     Vista de lista con grupos colapsables por estado
-│   ├── TaskDetail.tsx   Modal de detalle/visualización de tarea
+│   ├── TaskDetail.tsx   Modal de detalle/visualización de tarea + gestión de labels
 │   └── TaskModal.tsx    Modal de creación y edición de tarea
 ├── types.ts             Tipos y constantes compartidas del dominio
 ├── App.tsx              Orquestador principal + estado de modales
@@ -90,6 +91,22 @@ Cognito User Pool (Google OAuth2) emite JWTs que valida API Gateway
 
 ---
 
+## Modelo de datos — Labels
+
+Labels almacenadas en la misma tabla DynamoDB (single-table), mismo PK que tareas y comentarios:
+
+```
+PK: USER#{cognitoSub}
+SK: LABEL#{taskId}#{labelId}
+Campos: taskId, labelId, name
+```
+
+Un item por label por tarea. Para obtener todos los nombres únicos del usuario se consulta con prefijo `LABEL#`; para los labels de una tarea específica se usa `LABEL#{taskId}#`.
+
+**Validación de nombre:** max 50 caracteres, regex `^[a-zA-Z0-9\-_ ]+$` (letras, números, guion, guion bajo, espacios). Validada en el backend handler y también en el frontend antes de hacer el request.
+
+---
+
 ## Tipos y constantes del dominio (`frontend/src/types.ts`)
 
 ```typescript
@@ -97,6 +114,8 @@ BoardMode:    'kanban' | 'list'
 TaskStatus:   'Backlog' | 'Planificación' | 'Ejecución' | 'Pausado' | 'Validación' | 'Finalizado' | 'Cancelado'
 TaskType:     'unica' | 'recurrente'
 UrgencyLevel: 'warning' | 'alert' | 'overdue'
+
+interface Label { id: string; name: string; }
 ```
 
 **Constantes exportadas:**
@@ -117,6 +136,36 @@ UrgencyLevel: 'warning' | 'alert' | 'overdue'
 |---|---|
 | `fmt(dateStr?)` | Formatea una fecha YYYY-MM-DD a string legible en es-MX |
 | `dateUrgency(dateStr?, status?)` | Retorna `UrgencyLevel \| null` según proximidad de la fecha; devuelve `null` si el estado está en `INACTIVE_STATUSES` |
+
+---
+
+## Drag and drop (modo Kanban)
+
+Implementado con la API nativa del navegador (`draggable`, `ondragstart`, `ondrop`), sin dependencias externas. Solo aplica en modo Kanban.
+
+- **`Card`** — `draggable={true}`. `onDragStart` escribe el `taskId` en `dataTransfer`. Mientras se arrastra aplica clase `.card.dragging` (opacidad reducida) vía estado local.
+- **`Column`** — es el drop target. `onDragOver` llama `preventDefault()` para habilitar el drop. `onDrop` lee el `taskId` de `dataTransfer` y llama `onMoveTask(taskId, status)`. `onDragEnter`/`onDragLeave` gestionan clase `.col.drag-over` (highlight visual); el `onDragLeave` usa `e.currentTarget.contains(e.relatedTarget)` para evitar falsos disparos al pasar sobre elementos hijos.
+- **`Board`** — recibe `onMoveTask(taskId, status)` y lo inyecta a cada columna con su status ya fijado.
+- **`App`** — pasa `onMoveTask={(taskId, status) => updateTask(taskId, { status })}`. La actualización reutiliza el mismo `PUT /tasks/{id}` que el selector de estado del modal.
+
+---
+
+## Labels
+
+### Frontend — `useLabels.ts`
+Carga `GET /labels` una vez en el mount (cuando el usuario está autenticado). Expone:
+- `allLabelNames: string[]` — caché de todos los nombres de labels del usuario, usados para sugerencias de autocompletado.
+- `registerLabel(name)` — añade un nombre al caché local si no existe, sin hacer request. Se llama desde `TaskDetail` al crear una label nueva durante la sesión.
+
+### Frontend — `TaskDetail` (sección Labels)
+- Al abrir el modal: carga `GET /tasks/{id}/labels` y guarda en estado local `labels: Label[]`.
+- Muestra chips removibles por cada label. Click en `×` → `DELETE /tasks/{id}/labels/{labelId}` y actualiza estado local.
+- Input con dropdown de sugerencias:
+  - Filtra `allLabelNames` por substring (case-insensitive), excluyendo labels ya en la tarea.
+  - Si el input es válido y no está en la tarea, muestra opción «Crear `{nombre}`» al fondo del dropdown.
+  - Mensajes inline si el nombre es inválido o ya existe en la tarea.
+  - Enter o click en sugerencia → `POST /tasks/{id}/labels`, actualiza estado local y llama `registerLabel`.
+  - `onBlur` cierra sugerencias con `setTimeout(150ms)` para permitir el `mousedown` de los items.
 
 ---
 
@@ -189,6 +238,10 @@ Base URL en `VITE_API_URL`. Todas las rutas requieren `Authorization: Bearer <id
 | PUT | `/tasks/{id}` | Actualiza campos: `title`, `desc`, `status`, `tipo`, `deadline`, `nextDate` |
 | DELETE | `/tasks/{id}` | Elimina tarea |
 | POST | `/tasks/{id}/comments` | Agrega comentario (`{ text }`) |
+| GET | `/labels` | Lista todos los nombres de labels únicos del usuario |
+| GET | `/tasks/{id}/labels` | Lista labels de una tarea específica |
+| POST | `/tasks/{id}/labels` | Crea label en una tarea (`{ name }`) |
+| DELETE | `/tasks/{id}/labels/{labelId}` | Elimina label de una tarea |
 
 ---
 
@@ -304,3 +357,6 @@ El workflow de infra escribe `infra/.env` en tiempo de ejecución a partir de es
 - **Modo del tablero en localStorage**: persiste entre sesiones sin necesidad de backend; clave `board-view-mode`.
 - **Constantes centralizadas en `types.ts`**: todos los valores del dominio (colores, labels, listas de estados) viven en un solo lugar para evitar strings hardcodeados dispersos en componentes.
 - **Helpers compartidos en `lib/utils.ts`**: `fmt` y `dateUrgency` se usan en `Card`, `TaskDetail` y `ListView`; extraídos para evitar duplicación.
+- **Drag and drop nativo**: sin dependencias externas. La API de HTML5 es suficiente para el caso de uso (escritorio, mover entre columnas). El drop reutiliza el mismo `updateTask` que el selector de estado del modal.
+- **Labels cargadas lazily por tarea**: `GET /tasks/{id}/labels` solo se llama al abrir el modal, no en el page load. El page load solo carga los nombres únicos (`GET /labels`) para el autocompletado, minimizando requests.
+- **Caché local de nombres de labels**: `useLabels` mantiene la lista en memoria durante la sesión. Las labels creadas en la sesión se agregan al caché con `registerLabel` sin request adicional.
