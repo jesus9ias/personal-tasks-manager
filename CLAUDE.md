@@ -82,10 +82,10 @@ Cognito User Pool (Google OAuth2) emite JWTs que valida API Gateway
 | Entidad | SK |
 |---|---|
 | Tarea | `TASK#{taskId}` |
-| Comentario | `COMMENT#{taskId}#{cid}` |
+| Comentario | `COMMENT#{taskId}#{commentId}` |
 
-**Campos de tarea:** `taskId`, `title`, `desc`, `status`, `tipo`, `deadline`, `nextDate`, `createdAt`  
-**Campos de comentario:** `taskId`, `cid`, `text`, `date`
+**Campos de tarea:** `taskId`, `name`, `body`, `status`, `kind`, `dueDate`, `nextDate`, `createdAt`  
+**Campos de comentario:** `taskId`, `commentId`, `body`, `createdAt`
 
 **IDs** generados en `backend/src/lib/dynamo.ts:newId()` — base36 timestamp + random.
 
@@ -112,7 +112,7 @@ Un item por label por tarea. Para obtener todos los nombres únicos del usuario 
 ```typescript
 BoardMode:    'kanban' | 'list'
 TaskStatus:   'Backlog' | 'Planificación' | 'Ejecución' | 'Pausado' | 'Validación' | 'Finalizado' | 'Cancelado'
-TaskType:     'unica' | 'recurrente'
+TaskKind:     'ONE_TIME' | 'RECURRING'
 UrgencyLevel: 'warning' | 'alert' | 'overdue'
 
 interface Label { id: string; name: string; }
@@ -127,8 +127,8 @@ interface Label { id: string; name: string; }
 | `STATE_BG` | `Record<TaskStatus, string>` | Color de fondo por estado |
 | `INACTIVE_STATUSES` | `TaskStatus[]` | Estados que desactivan los indicadores de urgencia: `['Pausado', 'Finalizado', 'Cancelado']` |
 | `URGENCY` | `Record<UrgencyLevel, {icon, title}>` | Icono y tooltip para cada nivel de urgencia de fecha |
-| `TASK_TYPES` | `TaskType[]` | Lista de tipos de tarea para select |
-| `TASK_TYPE_LABELS` | `Record<TaskType, string>` | Etiqueta de display: `unica → 'Única'`, `recurrente → 'Recurrente'` |
+| `TASK_KINDS` | `TaskKind[]` | Lista de tipos de tarea para select |
+| `TASK_KIND_LABELS` | `Record<TaskKind, string>` | Etiqueta de display: `ONE_TIME → 'Única'`, `RECURRING → 'Recurrente'` |
 
 **Helpers compartidos (`frontend/src/lib/utils.ts`):**
 
@@ -195,8 +195,8 @@ Todos los modales se cierran con **Escape** o haciendo click fuera del área del
 ### Modal de nueva tarea
 - Se abre desde el botón `+ Nueva tarea` del toolbar (sin estado preseleccionado) o desde el botón `+` de una columna/grupo (con `initialStatus` preseleccionado).
 - Campos: **Nombre** (requerido), **Descripción**, **Estado** (select con todos los estados), **Tipo** (Única / Recurrente).
-- Si el tipo es `unica`, muestra el campo **Fecha límite**.
-- Si el tipo es `recurrente`, muestra el campo **Siguiente fecha**.
+- Si el tipo es `ONE_TIME`, muestra el campo **Fecha límite**.
+- Si el tipo es `RECURRING`, muestra el campo **Siguiente fecha**.
 - Al guardar llama a `POST /tasks` y cierra el modal.
 
 ### Modal de detalle (`TaskDetail`)
@@ -209,7 +209,7 @@ Todos los modales se cierran con **Escape** o haciendo click fuera del área del
 - Mismos campos que el modal de nueva tarea, prellenados con los valores actuales.
 - Botón **Eliminar** (rojo) llama a `DELETE /tasks/{id}` y cierra.
 - Botón **Guardar cambios** llama a `PUT /tasks/{id}` con los campos modificados.
-- El campo `deadline` se envía solo si `tipo === 'unica'`; `nextDate` solo si `tipo === 'recurrente'`.
+- El campo `dueDate` se envía solo si `kind === 'ONE_TIME'`; `nextDate` solo si `kind === 'RECURRING'`.
 
 ---
 
@@ -235,9 +235,9 @@ Base URL en `VITE_API_URL`. Todas las rutas requieren `Authorization: Bearer <id
 |---|---|---|
 | GET | `/tasks` | Lista todas las tareas con sus comentarios |
 | POST | `/tasks` | Crea tarea |
-| PUT | `/tasks/{id}` | Actualiza campos: `title`, `desc`, `status`, `tipo`, `deadline`, `nextDate` |
+| PUT | `/tasks/{id}` | Actualiza campos: `name`, `body`, `status`, `kind`, `dueDate`, `nextDate` |
 | DELETE | `/tasks/{id}` | Elimina tarea |
-| POST | `/tasks/{id}/comments` | Agrega comentario (`{ text }`) |
+| POST | `/tasks/{id}/comments` | Agrega comentario (`{ body }`) |
 | GET | `/labels` | Lista todos los nombres de labels únicos del usuario |
 | GET | `/tasks/{id}/labels` | Lista labels de una tarea específica |
 | POST | `/tasks/{id}/labels` | Crea label en una tarea (`{ name }`) |

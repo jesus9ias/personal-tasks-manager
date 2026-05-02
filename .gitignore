@@ -13,3 +13,5 @@ infra/cdk.context.json
 
 # Infra environment config — copy infra/.env.example to infra/.env to configure
 infra/.env
+
+dynamo-export-*

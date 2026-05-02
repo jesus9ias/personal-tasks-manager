@@ -349,7 +349,7 @@ Tabla DynamoDB `personal-tasks-manager` con diseño single-table.
 | Entidad | PK | SK |
 |---|---|---|
 | Tarea | `USER#{cognitoSub}` | `TASK#{taskId}` |
-| Comentario | `USER#{cognitoSub}` | `COMMENT#{taskId}#{cid}` |
+| Comentario | `USER#{cognitoSub}` | `COMMENT#{taskId}#{commentId}` |
 | Label | `USER#{cognitoSub}` | `LABEL#{taskId}#{labelId}` |
 
 ### Campos de tarea
@@ -357,12 +357,12 @@ Tabla DynamoDB `personal-tasks-manager` con diseño single-table.
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `taskId` | string | ID único (base36) |
-| `title` | string | Título |
-| `desc` | string | Descripción |
+| `name` | string | Nombre de la tarea |
+| `body` | string | Descripción |
 | `status` | TaskStatus | Estado actual |
-| `tipo` | `unica` \| `recurrente` | Tipo de tarea |
-| `deadline` | string (YYYY-MM-DD) | Fecha límite — solo para tareas únicas, opcional |
-| `nextDate` | string (YYYY-MM-DD) | Próxima fecha de recurrencia — solo para tareas recurrentes, opcional |
+| `kind` | `ONE_TIME` \| `RECURRING` | Tipo de tarea |
+| `dueDate` | string (YYYY-MM-DD) | Fecha límite — solo para tareas `ONE_TIME`, opcional |
+| `nextDate` | string (YYYY-MM-DD) | Próxima fecha de recurrencia — solo para tareas `RECURRING`, opcional |
 | `createdAt` | string (YYYY-MM-DD) | Fecha de creación |
 
 ### Estados posibles (`TaskStatus`)
@@ -375,9 +375,9 @@ También: `Pausado`, `Cancelado`
 
 | Campo | Tipo |
 |---|---|
-| `cid` | string — ID único |
-| `text` | string |
-| `date` | string (YYYY-MM-DD) |
+| `commentId` | string — ID único |
+| `body` | string |
+| `createdAt` | string (YYYY-MM-DD) |
 
 ---
 
@@ -391,7 +391,7 @@ Todas las rutas requieren `Authorization: Bearer <idToken>` (JWT de Cognito).
 | `POST` | `/tasks` | Crea una tarea |
 | `PUT` | `/tasks/{id}` | Actualiza campos de una tarea |
 | `DELETE` | `/tasks/{id}` | Elimina una tarea |
-| `POST` | `/tasks/{id}/comments` | Agrega un comentario (`{ "text": "..." }`) |
+| `POST` | `/tasks/{id}/comments` | Agrega un comentario (`{ "body": "..." }`) |
 | `GET` | `/labels` | Lista todos los nombres de labels únicos del usuario |
 | `GET` | `/tasks/{id}/labels` | Lista las labels de una tarea |
 | `POST` | `/tasks/{id}/labels` | Agrega una label a una tarea (`{ "name": "..." }`) |

@@ -16,28 +16,28 @@ export async function handler(
   }
 
   try {
-    const body = JSON.parse(event.body ?? '{}');
-    const text = (body.text ?? '').trim();
-    if (!text) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'text is required' }) };
+    const payload = JSON.parse(event.body ?? '{}');
+    const body = (payload.body ?? '').trim();
+    if (!body) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'body is required' }) };
     }
 
-    const cid = newId();
-    const date = new Date().toISOString().slice(0, 10);
+    const commentId = newId();
+    const createdAt = new Date().toISOString().slice(0, 10);
     const item = {
       pk: taskPK(sub),
-      sk: commentSK(taskId, cid),
+      sk: commentSK(taskId, commentId),
       taskId,
-      cid,
-      text,
-      date,
+      commentId,
+      body,
+      createdAt,
     };
     await putItem(item);
 
     return {
       statusCode: 201,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: cid, text, date }),
+      body: JSON.stringify({ id: commentId, body, createdAt }),
     };
   } catch (e) {
     console.error(e);

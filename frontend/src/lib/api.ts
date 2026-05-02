@@ -41,7 +41,7 @@ export const api = {
   addComment: (taskId: string, text: string) =>
     request<Comment>(`/tasks/${taskId}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ body: text }),
     }),
 
   getAllLabelNames: () => request<string[]>('/labels'),

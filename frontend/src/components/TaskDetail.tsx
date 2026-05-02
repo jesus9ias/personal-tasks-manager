@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import type { Task, TaskStatus, Label } from '../types';
-import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_TYPE_LABELS } from '../types';
+import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KIND_LABELS } from '../types';
 import { fmt, dateUrgency } from '../lib/utils';
 import { api } from '../lib/api';
 
@@ -67,7 +67,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
     <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>{task.title}</h3>
+          <h3>{task.name}</h3>
           <button className="btn" style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={onEdit}>
             Editar
           </button>
@@ -89,17 +89,17 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
           </div>
         </div>
 
-        {task.desc && (
+        {task.body && (
           <div className="detail-section">
             <div className="detail-label">Descripción</div>
-            <div className="detail-value">{task.desc}</div>
+            <div className="detail-value">{task.body}</div>
           </div>
         )}
 
         <div className="row2" style={{ marginBottom: '14px' }}>
           <div>
             <div className="detail-label">Tipo</div>
-            <div className="detail-value">{TASK_TYPE_LABELS[task.tipo]}</div>
+            <div className="detail-value">{TASK_KIND_LABELS[task.kind]}</div>
           </div>
           <div>
             <div className="detail-label">Creado</div>
@@ -107,19 +107,19 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
           </div>
         </div>
 
-        {task.tipo === 'unica' && task.deadline && (() => {
-          const u = dateUrgency(task.deadline, task.status);
+        {task.kind === 'ONE_TIME' && task.dueDate && (() => {
+          const u = dateUrgency(task.dueDate, task.status);
           return (
             <div className="detail-section">
               <div className="detail-label">Fecha límite</div>
               <div className="detail-value">
-                {fmt(task.deadline)}
+                {fmt(task.dueDate)}
                 {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
               </div>
             </div>
           );
         })()}
-        {task.tipo === 'recurrente' && task.nextDate && (() => {
+        {task.kind === 'RECURRING' && task.nextDate && (() => {
           const u = dateUrgency(task.nextDate, task.status);
           return (
             <div className="detail-section">
@@ -200,8 +200,8 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
             )}
             {[...task.comments].reverse().map((c) => (
               <div key={c.id} className="comment-item">
-                {c.text}
-                <div className="comment-date">{fmt(c.date)}</div>
+                {c.body}
+                <div className="comment-date">{fmt(c.createdAt)}</div>
               </div>
             ))}
           </div>

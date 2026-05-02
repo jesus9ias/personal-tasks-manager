@@ -9,12 +9,12 @@ export type TaskStatus =
   | 'Finalizado'
   | 'Cancelado';
 
-export type TaskType = 'unica' | 'recurrente';
+export type TaskKind = 'ONE_TIME' | 'RECURRING';
 
 export interface Comment {
   id: string;
-  text: string;
-  date: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface Label {
@@ -24,22 +24,22 @@ export interface Label {
 
 export interface Task {
   id: string;
-  title: string;
-  desc: string;
+  name: string;
+  body: string;
   status: TaskStatus;
-  tipo: TaskType;
-  deadline?: string;
+  kind: TaskKind;
+  dueDate?: string;
   nextDate?: string;
   createdAt: string;
   comments: Comment[];
 }
 
 export interface CreateTaskInput {
-  title: string;
-  desc: string;
+  name: string;
+  body: string;
   status: TaskStatus;
-  tipo: TaskType;
-  deadline?: string;
+  kind: TaskKind;
+  dueDate?: string;
   nextDate?: string;
 }
 
@@ -85,9 +85,9 @@ export const URGENCY: Record<UrgencyLevel, { icon: string; title: string }> = {
   overdue: { icon: '🚨', title: 'Fecha vencida' },
 };
 
-export const TASK_TYPES: TaskType[] = ['unica', 'recurrente'];
+export const TASK_KINDS: TaskKind[] = ['ONE_TIME', 'RECURRING'];
 
-export const TASK_TYPE_LABELS: Record<TaskType, string> = {
-  unica: 'Única',
-  recurrente: 'Recurrente',
+export const TASK_KIND_LABELS: Record<TaskKind, string> = {
+  ONE_TIME: 'Única',
+  RECURRING: 'Recurrente',
 };

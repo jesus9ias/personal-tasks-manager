@@ -18,17 +18,17 @@ function getSub(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {
 function dbItemToTask(item: Record<string, unknown>, comments: Record<string, unknown>[]) {
   return {
     id: item['taskId'],
-    title: item['title'],
-    desc: item['desc'] ?? '',
+    name: item['name'],
+    body: item['body'] ?? '',
     status: item['status'],
-    tipo: item['tipo'],
-    deadline: item['deadline'],
+    kind: item['kind'],
+    dueDate: item['dueDate'],
     nextDate: item['nextDate'],
     createdAt: item['createdAt'],
     comments: comments.map((c) => ({
-      id: c['cid'],
-      text: c['text'],
-      date: c['date'],
+      id: c['commentId'],
+      body: c['body'],
+      createdAt: c['createdAt'],
     })),
   };
 }
@@ -63,19 +63,19 @@ export async function handler(
     }
 
     if (method === 'POST' && !taskId) {
-      const body = JSON.parse(event.body ?? '{}');
+      const payload = JSON.parse(event.body ?? '{}');
       const id = newId();
       const now = new Date().toISOString().slice(0, 10);
       const item = {
         pk,
         sk: taskSK(id),
         taskId: id,
-        title: body.title,
-        desc: body.desc ?? '',
-        status: body.status ?? 'Backlog',
-        tipo: body.tipo ?? 'unica',
-        deadline: body.deadline ?? null,
-        nextDate: body.nextDate ?? null,
+        name: payload.name,
+        body: payload.body ?? '',
+        status: payload.status ?? 'Backlog',
+        kind: payload.kind ?? 'ONE_TIME',
+        dueDate: payload.dueDate ?? null,
+        nextDate: payload.nextDate ?? null,
         createdAt: now,
       };
       await putItem(item);
@@ -83,10 +83,10 @@ export async function handler(
     }
 
     if (method === 'PUT' && taskId) {
-      const body = JSON.parse(event.body ?? '{}');
-      const allowed = ['title', 'desc', 'status', 'tipo', 'deadline', 'nextDate'];
+      const payload = JSON.parse(event.body ?? '{}');
+      const allowed = ['name', 'body', 'status', 'kind', 'dueDate', 'nextDate'];
       const updates = Object.fromEntries(
-        Object.entries(body).filter(([k]) => allowed.includes(k)),
+        Object.entries(payload).filter(([k]) => allowed.includes(k)),
       );
       const updated = await updateItem(pk, taskSK(taskId), updates);
       if (!updated) return err(404, 'Task not found');

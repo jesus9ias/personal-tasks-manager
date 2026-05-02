@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Task, CreateTaskInput, TaskStatus, TaskType } from '../types';
-import { STATES, TASK_TYPES, TASK_TYPE_LABELS } from '../types';
+import type { Task, CreateTaskInput, TaskStatus, TaskKind } from '../types';
+import { STATES, TASK_KINDS, TASK_KIND_LABELS } from '../types';
 
 interface Props {
   task?: Task;
@@ -11,23 +11,30 @@ interface Props {
 }
 
 export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Props) {
-  const [title, setTitle] = useState(task?.title ?? '');
-  const [desc, setDesc] = useState(task?.desc ?? '');
+  const [name, setName] = useState(task?.name ?? '');
+  const [body, setBody] = useState(task?.body ?? '');
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? initialStatus ?? 'Backlog');
-  const [tipo, setTipo] = useState<TaskType>(task?.tipo ?? 'unica');
-  const [deadline, setDeadline] = useState(task?.deadline ?? '');
+  const [kind, setKind] = useState<TaskKind>(task?.kind ?? 'ONE_TIME');
+  const [dueDate, setDueDate] = useState(task?.dueDate ?? '');
   const [nextDate, setNextDate] = useState(task?.nextDate ?? '');
-  const [titleError, setTitleError] = useState(false);
+  const [nameError, setNameError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const isEdit = !!task;
   const today = new Date().toISOString().slice(0, 10);
 
   async function handleSave() {
-    if (!title.trim()) { setTitleError(true); return; }
+    if (!name.trim()) { setNameError(true); return; }
     setSaving(true);
     try {
-      await onSave({ title: title.trim(), desc, status, tipo, deadline: tipo === 'unica' ? deadline : undefined, nextDate: tipo === 'recurrente' ? nextDate : undefined });
+      await onSave({
+        name: name.trim(),
+        body,
+        status,
+        kind,
+        dueDate: kind === 'ONE_TIME' ? dueDate : undefined,
+        nextDate: kind === 'RECURRING' ? nextDate : undefined,
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -48,16 +55,16 @@ export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Pr
         <div className="field">
           <label>Nombre *</label>
           <input
-            className={titleError ? 'error' : ''}
-            value={title}
-            onChange={(e) => { setTitle(e.target.value); setTitleError(false); }}
+            className={nameError ? 'error' : ''}
+            value={name}
+            onChange={(e) => { setName(e.target.value); setNameError(false); }}
             placeholder="Nombre de la tarea"
           />
         </div>
 
         <div className="field">
           <label>Descripción</label>
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Descripción de la tarea" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descripción de la tarea" />
         </div>
 
         <div className="row2">
@@ -69,19 +76,19 @@ export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Pr
           </div>
           <div className="field">
             <label>Tipo</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value as TaskType)}>
-              {TASK_TYPES.map((t) => <option key={t} value={t}>{TASK_TYPE_LABELS[t]}</option>)}
+            <select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)}>
+              {TASK_KINDS.map((k) => <option key={k} value={k}>{TASK_KIND_LABELS[k]}</option>)}
             </select>
           </div>
         </div>
 
-        {tipo === 'unica' && (
+        {kind === 'ONE_TIME' && (
           <div className="field">
             <label>Fecha límite</label>
-            <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
         )}
-        {tipo === 'recurrente' && (
+        {kind === 'RECURRING' && (
           <div className="field">
             <label>Siguiente fecha</label>
             <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />

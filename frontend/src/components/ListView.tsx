@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Task, TaskStatus } from '../types';
-import { STATES, STATE_COLORS, URGENCY, TASK_TYPE_LABELS } from '../types';
+import { STATES, STATE_COLORS, URGENCY, TASK_KIND_LABELS } from '../types';
 import { fmt, dateUrgency } from '../lib/utils';
 
 interface Props {
@@ -58,20 +58,20 @@ export function ListView({ tasks, onCardClick, onAddToColumn }: Props) {
                   <div className="empty-col" style={{ padding: '10px 12px' }}>Sin tareas</div>
                 ) : (
                   group.map((task) => {
-                    const dateStr = task.tipo === 'unica' ? task.deadline : task.nextDate;
+                    const dateStr = task.kind === 'ONE_TIME' ? task.dueDate : task.nextDate;
                     const u = dateUrgency(dateStr, task.status);
                     return (
                       <div key={task.id} className="list-row" onClick={() => onCardClick(task)}>
-                        <span className="list-cell-title">{task.title}</span>
+                        <span className="list-cell-title">{task.name}</span>
                         <span className="list-cell-badge">
-                          <span className={`badge badge-${task.tipo}`}>
-                            {TASK_TYPE_LABELS[task.tipo]}
+                          <span className={`badge badge-${task.kind}`}>
+                            {TASK_KIND_LABELS[task.kind]}
                           </span>
                         </span>
                         <span className="list-cell-date">
                           {dateStr && (
                             <span className="date-tag">
-                              {task.tipo === 'unica' ? '📅' : '🔁'} {fmt(dateStr)}
+                              {task.kind === 'ONE_TIME' ? '📅' : '🔁'} {fmt(dateStr)}
                               {u && <span title={URGENCY[u].title}> {URGENCY[u].icon}</span>}
                             </span>
                           )}
