@@ -6,6 +6,23 @@ import { api } from '../lib/api';
 
 const LABEL_REGEX = /^[a-zA-Z0-9\-_ ]+$/;
 
+function ExpandableText({ text, className }: { text: string; className?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const needsClamp = text.split('\n').length > 3 || text.length > 200;
+  return (
+    <div>
+      <div className={className} style={{ whiteSpace: 'pre-wrap', ...(needsClamp && !expanded ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : {}) }}>
+        {text}
+      </div>
+      {needsClamp && (
+        <button className="expand-btn" onClick={() => setExpanded(v => !v)}>
+          {expanded ? 'Ver menos' : 'Ver más'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   task: Task;
   allLabelNames: string[];
@@ -17,7 +34,7 @@ interface Props {
 }
 
 export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, onAddComment, onEdit, onClose }: Props) {
-  const commentRef = useRef<HTMLInputElement>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
   const [labels, setLabels] = useState<Label[]>([]);
@@ -92,7 +109,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
         {task.body && (
           <div className="detail-section">
             <div className="detail-label">Descripción</div>
-            <div className="detail-value">{task.body}</div>
+            <ExpandableText text={task.body} className="detail-value" />
           </div>
         )}
 
@@ -185,14 +202,16 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
         <div className="detail-section">
           <div className="detail-label">Comentarios</div>
           <div className="add-comment">
-            <input
+            <textarea
               ref={commentRef}
               placeholder="Agregar comentario..."
-              onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+              rows={2}
             />
-            <button className="btn" style={{ fontSize: '12px', padding: '5px 10px' }} onClick={submitComment}>
-              Agregar
-            </button>
+            <div className="add-comment-actions">
+              <button className="btn" style={{ fontSize: '12px', padding: '5px 10px' }} onClick={submitComment}>
+                Agregar
+              </button>
+            </div>
           </div>
           <div className="comment-list">
             {task.comments.length === 0 && (
@@ -200,7 +219,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
             )}
             {[...task.comments].reverse().map((c) => (
               <div key={c.id} className="comment-item">
-                {c.body}
+                <ExpandableText text={c.body} />
                 <div className="comment-date">{fmt(c.createdAt)}</div>
               </div>
             ))}
