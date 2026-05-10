@@ -110,6 +110,24 @@ body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1
 .list-cell-badge{flex:0 0 80px}
 .list-cell-date{flex:0 0 140px;font-size:11px}
 
+@keyframes sk-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.sk{background:linear-gradient(90deg,#e8e8e6 25%,#f0f0ee 50%,#e8e8e6 75%);background-size:200% 100%;animation:sk-shimmer 1.6s infinite;border-radius:4px}
+.sk-col-header{height:12px;width:60%;margin-bottom:10px}
+.sk-card{background:#fff;border:0.5px solid rgba(0,0,0,0.08);border-radius:8px;padding:10px;margin-bottom:8px}
+.sk-line{height:11px;margin-bottom:6px}
+.sk-line-title{width:80%}
+.sk-line-short{width:50%}
+.sk-line-xs{width:35%;height:10px}
+.sk-badge{height:18px;width:48px;border-radius:10px;display:inline-block}
+.sk-list-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.06)}
+.sk-list-row:last-child{border-bottom:none}
+.sk-list-title{flex:1;height:12px}
+.sk-list-badge{flex:0 0 80px;height:12px}
+.sk-list-date{flex:0 0 100px;height:12px}
+.sk-group-header{display:flex;align-items:center;gap:8px;padding:8px 12px}
+.sk-group-title{height:11px;width:90px}
+.sk-group-count{height:16px;width:24px;border-radius:10px}
+
 @media (prefers-color-scheme: dark) {
   body{background:#1a1a18;color:#f0efea}
   .toolbar h2{color:#f0efea}
@@ -132,6 +150,9 @@ body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1
   .comment-item{background:#3a3a38;color:#f0efea}
   .delete-task-confirm{background:#2a1a1a;border-color:rgba(163,45,45,0.35);color:#f0a0a0}
   .delete-task-input{background:#1a1a18;border-color:rgba(163,45,45,0.5);color:#f0efea}
+  .sk{background:linear-gradient(90deg,#2e2e2c 25%,#3a3a38 50%,#2e2e2c 75%);background-size:200% 100%}
+  .sk-card{background:#3a3a38;border-color:rgba(255,255,255,0.06)}
+  .sk-list-row{background:#3a3a38;border-bottom-color:rgba(255,255,255,0.06)}
   .label-chip{background:#3a3a38;border-color:rgba(255,255,255,0.12);color:#f0efea}
   .label-input{background:#1e2230;border-color:rgba(100,140,220,0.3);color:#f0efea}
   .label-input::placeholder{color:#6a7fa8}

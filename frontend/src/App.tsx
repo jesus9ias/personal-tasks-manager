@@ -68,14 +68,9 @@ export default function App() {
 
   return (
     <div id="app">
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '1rem', fontSize: '12px', color: '#888' }}>
-          Sincronizando...
-        </div>
-      )}
-
       <Board
         tasks={tasks}
+        loading={loading}
         onCardClick={(task) => setModal({ kind: 'detail', task })}
         onNewTask={() => setModal({ kind: 'new' })}
         onAddToColumn={(status) => setModal({ kind: 'new', initialStatus: status })}
