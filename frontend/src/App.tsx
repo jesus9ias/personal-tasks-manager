@@ -4,16 +4,18 @@ import { useTasks } from './hooks/useTasks';
 import { useLabels } from './hooks/useLabels';
 import { useFilters } from './hooks/useFilters';
 import { Board } from './components/Board';
-import { FilterBar } from './components/FilterBar';
+import { FilterBarControls, FilterCriteriaPanel } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
-import type { Task, TaskStatus, CreateTaskInput } from './types';
+import type { Task, TaskStatus, BoardMode, CreateTaskInput } from './types';
 
 type Modal =
   | { kind: 'none' }
   | { kind: 'new'; initialStatus?: TaskStatus }
   | { kind: 'edit'; task: Task }
   | { kind: 'detail'; task: Task };
+
+const BOARD_MODE_KEY = 'board-view-mode';
 
 export default function App() {
   const { authenticated, loading: authLoading, login, logout } = useAuth();
@@ -23,6 +25,34 @@ export default function App() {
   const { state: filterState, addCriterion, updateCriterion, removeCriterion, setNameSearch, clearAll, filteredTasks, activeCount } =
     useFilters();
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
+  const [filterExpanded, setFilterExpanded] = useState(false);
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  const [mode, setMode] = useState<BoardMode>(
+    () => (localStorage.getItem(BOARD_MODE_KEY) as BoardMode) ?? 'kanban',
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', next);
+      return next;
+    });
+  }
+
+  function switchMode(next: BoardMode) {
+    setMode(next);
+    localStorage.setItem(BOARD_MODE_KEY, next);
+  }
 
   useEffect(() => {
     if (modal.kind === 'none') return;
@@ -72,25 +102,65 @@ export default function App() {
 
   return (
     <div id="app">
-      <FilterBar
-        nameSearch={filterState.nameSearch}
-        criteria={filterState.criteria}
-        activeCount={activeCount}
-        allLabelNames={allLabelNames}
-        onNameSearchChange={setNameSearch}
-        onAddCriterion={addCriterion}
-        onUpdateCriterion={updateCriterion}
-        onRemoveCriterion={removeCriterion}
-        onClearAll={clearAll}
-      />
+      <header className="app-header">
+        <h2>Administrador de tareas personales</h2>
+        <button
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+        <button className="btn app-header-btn" onClick={logout}>
+          Salir
+        </button>
+      </header>
+
+      <div className="app-subheader">
+        <div className="subheader-row">
+          <FilterBarControls
+            nameSearch={filterState.nameSearch}
+            activeCount={activeCount}
+            expanded={filterExpanded}
+            onNameSearchChange={setNameSearch}
+            onToggleExpanded={() => setFilterExpanded((v) => !v)}
+            onClearAll={clearAll}
+          />
+          <div className="mode-toggle">
+            <button
+              className={`mode-btn${mode === 'kanban' ? ' active' : ''}`}
+              onClick={() => switchMode('kanban')}
+            >
+              <span className="btn-label">Tablero</span><span className="btn-icon">⊞</span>
+            </button>
+            <button
+              className={`mode-btn${mode === 'list' ? ' active' : ''}`}
+              onClick={() => switchMode('list')}
+            >
+              <span className="btn-label">Lista</span><span className="btn-icon">☰</span>
+            </button>
+          </div>
+          <button className="btn btn-primary" onClick={() => setModal({ kind: 'new' })}>
+            <span className="btn-label">Nueva tarea</span><span className="btn-icon">+</span>
+          </button>
+        </div>
+        <FilterCriteriaPanel
+          criteria={filterState.criteria}
+          allLabelNames={allLabelNames}
+          expanded={filterExpanded}
+          onAddCriterion={addCriterion}
+          onUpdateCriterion={updateCriterion}
+          onRemoveCriterion={removeCriterion}
+        />
+      </div>
+
       <Board
+        mode={mode}
         tasks={filteredTasks(tasks)}
         loading={loading}
         onCardClick={(task) => setModal({ kind: 'detail', task })}
-        onNewTask={() => setModal({ kind: 'new' })}
         onAddToColumn={(status) => setModal({ kind: 'new', initialStatus: status })}
         onMoveTask={(taskId, status) => updateTask(taskId, { status })}
-        onLogout={logout}
       />
 
       {modal.kind === 'new' && (

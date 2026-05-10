@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import type { FilterCriterion, FilterField, FilterOperator, TaskStatus, UrgencyLevel } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KINDS, TASK_KIND_LABELS } from '../types';
+import { useState } from 'react';
 
 const FIELD_LABELS: Record<FilterField, string> = {
   name: 'Nombre',
@@ -307,92 +307,106 @@ function CriterionRow({
   );
 }
 
-// ── FilterBar ────────────────────────────────────────────────────────────────
+// ── FilterBarControls ────────────────────────────────────────────────────────
 
-interface FilterBarProps {
+interface FilterBarControlsProps {
   nameSearch: string;
-  criteria: FilterCriterion[];
   activeCount: number;
-  allLabelNames: string[];
+  expanded: boolean;
   onNameSearchChange: (v: string) => void;
-  onAddCriterion: (field: FilterField) => void;
-  onUpdateCriterion: (id: string, updates: Partial<FilterCriterion>) => void;
-  onRemoveCriterion: (id: string) => void;
+  onToggleExpanded: () => void;
   onClearAll: () => void;
 }
 
-export function FilterBar({
+export function FilterBarControls({
   nameSearch,
-  criteria,
   activeCount,
-  allLabelNames,
+  expanded,
   onNameSearchChange,
-  onAddCriterion,
-  onUpdateCriterion,
-  onRemoveCriterion,
+  onToggleExpanded,
   onClearAll,
-}: FilterBarProps) {
-  const [expanded, setExpanded] = useState(false);
+}: FilterBarControlsProps) {
   const hasAnyFilter = nameSearch.trim() !== '' || activeCount > 0;
 
   return (
-    <div className="filter-bar">
-      <div className="filter-bar-main">
-        <div className="filter-name-wrap">
-          <span className="filter-name-icon">🔍</span>
-          <input
-            type="text"
-            className="filter-name-input"
-            placeholder="Buscar por nombre..."
-            value={nameSearch}
-            onChange={(e) => onNameSearchChange(e.target.value)}
-          />
-        </div>
-        <button
-          className={`filter-toggle-btn${expanded ? ' active' : ''}`}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? '▲' : '▼'} Filtros
-          {activeCount > 0 && <span className="filter-count-badge">{activeCount}</span>}
-        </button>
-        {hasAnyFilter && (
-          <button className="filter-clear-btn" onClick={onClearAll}>
-            × Limpiar
-          </button>
-        )}
+    <>
+      <div className="filter-name-wrap">
+        <span className="filter-name-icon">🔍</span>
+        <input
+          type="text"
+          className="filter-name-input"
+          placeholder="Buscar por nombre..."
+          value={nameSearch}
+          onChange={(e) => onNameSearchChange(e.target.value)}
+        />
       </div>
-
-      {expanded && (
-        <div className="filter-criteria-panel">
-          {criteria.map((c) => (
-            <CriterionRow
-              key={c.id}
-              criterion={c}
-              allLabelNames={allLabelNames}
-              onUpdate={(updates) => onUpdateCriterion(c.id, updates)}
-              onRemove={() => onRemoveCriterion(c.id)}
-            />
-          ))}
-          <div className="filter-footer">
-            <select
-              className="filter-add-select"
-              value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  onAddCriterion(e.target.value as FilterField);
-                  (e.target as HTMLSelectElement).value = '';
-                }
-              }}
-            >
-              <option value="" disabled>+ Agregar filtro</option>
-              {FIELDS.map((f) => (
-                <option key={f} value={f}>{FIELD_LABELS[f]}</option>
-              ))}
-            </select>
-            <span className="filter-query-hint">Modo query <em>(próximamente)</em></span>
-          </div>
-        </div>
+      <button
+        className={`filter-toggle-btn${expanded ? ' active' : ''}`}
+        onClick={onToggleExpanded}
+      >
+        <span className="btn-label">Filtros</span>
+        <span className="btn-icon">{expanded ? '▲' : '▼'}</span>
+        {activeCount > 0 && <span className="filter-count-badge">{activeCount}</span>}
+      </button>
+      {hasAnyFilter && (
+        <button className="filter-clear-btn" onClick={onClearAll}>
+          × Limpiar
+        </button>
       )}
+    </>
+  );
+}
+
+// ── FilterCriteriaPanel ──────────────────────────────────────────────────────
+
+interface FilterCriteriaPanelProps {
+  criteria: FilterCriterion[];
+  allLabelNames: string[];
+  expanded: boolean;
+  onAddCriterion: (field: FilterField) => void;
+  onUpdateCriterion: (id: string, updates: Partial<FilterCriterion>) => void;
+  onRemoveCriterion: (id: string) => void;
+}
+
+export function FilterCriteriaPanel({
+  criteria,
+  allLabelNames,
+  expanded,
+  onAddCriterion,
+  onUpdateCriterion,
+  onRemoveCriterion,
+}: FilterCriteriaPanelProps) {
+  if (!expanded) return null;
+
+  return (
+    <div className="filter-criteria-panel">
+      {criteria.map((c) => (
+        <CriterionRow
+          key={c.id}
+          criterion={c}
+          allLabelNames={allLabelNames}
+          onUpdate={(updates) => onUpdateCriterion(c.id, updates)}
+          onRemove={() => onRemoveCriterion(c.id)}
+        />
+      ))}
+      <div className="filter-footer">
+        <select
+          className="filter-add-select"
+          value=""
+          onChange={(e) => {
+            if (e.target.value) {
+              onAddCriterion(e.target.value as FilterField);
+              (e.target as HTMLSelectElement).value = '';
+            }
+          }}
+        >
+          <option value="" disabled>+ Agregar filtro</option>
+          {FIELDS.map((f) => (
+            <option key={f} value={f}>{FIELD_LABELS[f]}</option>
+          ))}
+        </select>
+        <span className="filter-query-hint">Modo query <em>(próximamente)</em></span>
+      </div>
     </div>
   );
 }
