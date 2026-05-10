@@ -27,6 +27,7 @@ interface Props {
   task: Task;
   allLabelNames: string[];
   onLabelAdded: (name: string) => void;
+  onLabelsChange: (labels: Label[]) => void;
   onChangeStatus: (status: TaskStatus) => Promise<void>;
   onAddComment: (text: string) => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
@@ -35,7 +36,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, onAddComment, onDeleteComment, onDeleteTask, onEdit, onClose }: Props) {
+export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, onChangeStatus, onAddComment, onDeleteComment, onDeleteTask, onEdit, onClose }: Props) {
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,15 +89,19 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
     if (!trimmed || trimmed.length > 50 || !LABEL_REGEX.test(trimmed)) return;
     if (labels.some((l) => l.name.toLowerCase() === trimmed.toLowerCase())) return;
     const label = await api.addLabel(task.id, trimmed);
-    setLabels((prev) => [...prev, label]);
+    const next = [...labels, label];
+    setLabels(next);
     onLabelAdded(label.name);
+    onLabelsChange(next);
     setLabelInput('');
     setShowSuggestions(false);
   }
 
   async function handleRemoveLabel(labelId: string) {
     await api.removeLabel(task.id, labelId);
-    setLabels((prev) => prev.filter((l) => l.id !== labelId));
+    const next = labels.filter((l) => l.id !== labelId);
+    setLabels(next);
+    onLabelsChange(next);
   }
 
   async function submitComment() {

@@ -15,7 +15,11 @@ function getSub(event: APIGatewayProxyEventV2WithJWTAuthorizer): string {
   return event.requestContext.authorizer.jwt.claims['sub'] as string;
 }
 
-function dbItemToTask(item: Record<string, unknown>, comments: Record<string, unknown>[]) {
+function dbItemToTask(
+  item: Record<string, unknown>,
+  comments: Record<string, unknown>[],
+  labels: Record<string, unknown>[] = [],
+) {
   return {
     id: item['taskId'],
     name: item['name'],
@@ -30,6 +34,10 @@ function dbItemToTask(item: Record<string, unknown>, comments: Record<string, un
       body: c['body'],
       createdAt: c['createdAt'],
     })),
+    labels: labels.map((l) => ({
+      id: l['labelId'],
+      name: l['name'],
+    })),
   };
 }
 
@@ -43,8 +51,11 @@ export async function handler(
 
   try {
     if (method === 'GET' && !taskId) {
-      const taskItems = await queryItems(pk, 'TASK#');
-      const commentItems = await queryItems(pk, 'COMMENT#');
+      const [taskItems, commentItems, labelItems] = await Promise.all([
+        queryItems(pk, 'TASK#'),
+        queryItems(pk, 'COMMENT#'),
+        queryItems(pk, 'LABEL#'),
+      ]);
 
       const commentsByTask: Record<string, Record<string, unknown>[]> = {};
       for (const c of commentItems) {
@@ -54,9 +65,21 @@ export async function handler(
         commentsByTask[tid].push(c as Record<string, unknown>);
       }
 
+      const labelsByTask: Record<string, Record<string, unknown>[]> = {};
+      for (const l of labelItems) {
+        const sk = l['sk'] as string;
+        const tid = sk.split('#')[1];
+        if (!labelsByTask[tid]) labelsByTask[tid] = [];
+        labelsByTask[tid].push(l as Record<string, unknown>);
+      }
+
       const tasks = taskItems.map((item) => {
         const tid = (item['taskId'] as string) ?? '';
-        return dbItemToTask(item as Record<string, unknown>, commentsByTask[tid] ?? []);
+        return dbItemToTask(
+          item as Record<string, unknown>,
+          commentsByTask[tid] ?? [],
+          labelsByTask[tid] ?? [],
+        );
       });
 
       return ok(tasks);

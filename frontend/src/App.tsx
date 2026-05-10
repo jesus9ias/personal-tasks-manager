@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
 import { useLabels } from './hooks/useLabels';
+import { useFilters } from './hooks/useFilters';
 import { Board } from './components/Board';
+import { FilterBar } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
 import type { Task, TaskStatus, CreateTaskInput } from './types';
@@ -15,9 +17,11 @@ type Modal =
 
 export default function App() {
   const { authenticated, loading: authLoading, login, logout } = useAuth();
-  const { tasks, loading, createTask, updateTask, deleteTask, addComment, deleteComment } =
+  const { tasks, loading, createTask, updateTask, deleteTask, addComment, deleteComment, setTaskLabels } =
     useTasks(authenticated);
   const { allLabelNames, registerLabel } = useLabels(authenticated);
+  const { state: filterState, addCriterion, updateCriterion, removeCriterion, setNameSearch, clearAll, filteredTasks, activeCount } =
+    useFilters();
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
 
   useEffect(() => {
@@ -68,8 +72,19 @@ export default function App() {
 
   return (
     <div id="app">
+      <FilterBar
+        nameSearch={filterState.nameSearch}
+        criteria={filterState.criteria}
+        activeCount={activeCount}
+        allLabelNames={allLabelNames}
+        onNameSearchChange={setNameSearch}
+        onAddCriterion={addCriterion}
+        onUpdateCriterion={updateCriterion}
+        onRemoveCriterion={removeCriterion}
+        onClearAll={clearAll}
+      />
       <Board
-        tasks={tasks}
+        tasks={filteredTasks(tasks)}
         loading={loading}
         onCardClick={(task) => setModal({ kind: 'detail', task })}
         onNewTask={() => setModal({ kind: 'new' })}
@@ -100,6 +115,7 @@ export default function App() {
           task={activeTask}
           allLabelNames={allLabelNames}
           onLabelAdded={registerLabel}
+          onLabelsChange={(labels) => setTaskLabels(activeTask.id, labels)}
           onChangeStatus={(status) => handleChangeStatus(activeTask.id, status)}
           onAddComment={(text) => addComment(activeTask.id, text)}
           onDeleteComment={(commentId) => deleteComment(activeTask.id, commentId)}

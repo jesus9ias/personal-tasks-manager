@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
-import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
+import type { Task, Label, CreateTaskInput, UpdateTaskInput } from '../types';
 
 interface UseTasksResult {
   tasks: Task[];
@@ -11,6 +11,7 @@ interface UseTasksResult {
   deleteTask: (id: string) => Promise<void>;
   addComment: (taskId: string, text: string) => Promise<void>;
   deleteComment: (taskId: string, commentId: string) => Promise<void>;
+  setTaskLabels: (taskId: string, labels: Label[]) => void;
   refresh: () => Promise<void>;
 }
 
@@ -37,12 +38,13 @@ export function useTasks(authenticated: boolean): UseTasksResult {
 
   const createTask = async (input: CreateTaskInput) => {
     const task = await api.createTask(input);
-    setTasks((prev) => [...prev, task]);
+    setTasks((prev) => [...prev, { ...task, labels: task.labels ?? [] }]);
   };
 
   const updateTask = async (id: string, input: UpdateTaskInput) => {
     const updated = await api.updateTask(id, input);
-    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    // Preserve labels from local state — updateTask API does not return them
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...updated, labels: t.labels } : t)));
   };
 
   const deleteTask = async (id: string) => {
@@ -68,5 +70,9 @@ export function useTasks(authenticated: boolean): UseTasksResult {
     );
   };
 
-  return { tasks, loading, error, createTask, updateTask, deleteTask, addComment, deleteComment, refresh };
+  const setTaskLabels = (taskId: string, labels: Label[]) => {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels } : t)));
+  };
+
+  return { tasks, loading, error, createTask, updateTask, deleteTask, addComment, deleteComment, setTaskLabels, refresh };
 }

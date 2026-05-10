@@ -32,6 +32,42 @@ export interface Task {
   nextDate?: string;
   createdAt: string;
   comments: Comment[];
+  labels: Label[];
+}
+
+// ── Filter system ────────────────────────────────────────────────────────────
+
+export type FilterField =
+  | 'name'
+  | 'body'
+  | 'status'
+  | 'kind'
+  | 'createdAt'
+  | 'dueOrNextDate'
+  | 'urgency'
+  | 'labels'
+  | 'comments';
+
+export type FilterOperator =
+  | 'contains' | 'not_contains' | 'exact'
+  | 'is' | 'is_not' | 'is_any_of' | 'is_none_of'
+  | 'before' | 'on' | 'after'
+  | 'has' | 'has_not'
+  | 'contains_all' | 'contains_any' | 'contains_none';
+
+export interface FilterCriterion {
+  id: string;
+  field: FilterField;
+  operator: FilterOperator;
+  value: string | string[] | null;
+}
+
+export type FilterMode = 'visual' | 'query';
+
+export interface FilterState {
+  nameSearch: string;
+  criteria: FilterCriterion[];
+  mode: FilterMode;
 }
 
 export interface CreateTaskInput {
