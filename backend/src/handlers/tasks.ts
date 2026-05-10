@@ -44,7 +44,7 @@ export async function handler(
   try {
     if (method === 'GET' && !taskId) {
       const taskItems = await queryItems(pk, 'TASK#');
-      const commentItems = await queryComments(pk, 'COMMENT#');
+      const commentItems = await queryItems(pk, 'COMMENT#');
 
       const commentsByTask: Record<string, Record<string, unknown>[]> = {};
       for (const c of commentItems) {
@@ -90,7 +90,7 @@ export async function handler(
       );
       const updated = await updateItem(pk, taskSK(taskId), updates);
       if (!updated) return err(404, 'Task not found');
-      const comments = await queryComments(pk, `COMMENT#${taskId}#`);
+      const comments = await queryItems(pk, `COMMENT#${taskId}#`);
       return ok(dbItemToTask(updated as Record<string, unknown>, comments as Record<string, unknown>[]));
     }
 
