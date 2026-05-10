@@ -78,8 +78,8 @@ personal-tasks-manager/
 ├── backend/                   Lambda handlers (TypeScript)
 │   └── src/
 │       ├── handlers/
-│       │   ├── tasks.ts       GET/POST/PUT/DELETE /tasks
-│       │   ├── comments.ts    POST /tasks/{id}/comments
+│       │   ├── tasks.ts       GET/POST/PUT/DELETE /tasks (DELETE hace cascade de comentarios y labels)
+│       │   ├── comments.ts    POST+DELETE /tasks/{id}/comments
 │       │   └── labels.ts      GET /labels, GET+POST /tasks/{id}/labels, DELETE /tasks/{id}/labels/{labelId}
 │       └── lib/
 │           └── dynamo.ts      DynamoDB Document Client + helpers
@@ -111,6 +111,10 @@ personal-tasks-manager/
 ---
 
 ## Funcionalidades
+
+### Carga del tablero
+
+Mientras se obtienen las tareas del backend, el tablero muestra una versión "skeleton" que replica la estructura del modo activo (columnas en Kanban, grupos en Lista) con una animación shimmer. El toolbar permanece visible durante la carga.
 
 ### Modos del tablero
 
@@ -161,13 +165,19 @@ Campos:
 Se abre al hacer click en una tarjeta o en una fila de lista.
 
 Muestra:
-- Título con botón **Editar** en el header
+- Título con botones **Eliminar** (rojo) y **Editar** en el header
 - Selector visual de estado: pills de todos los estados que al hacer click cambian el estado inmediatamente (sin necesidad de guardar)
 - Descripción
 - Tipo y fecha de creación
 - Fecha límite o siguiente fecha, con indicador de urgencia si corresponde
 - Sección **Labels**: chips removibles con las labels de la tarea + input con autocompletado para agregar más (ver más abajo)
-- Sección de comentarios: input de agregar al principio, lista debajo ordenada del más reciente al más antiguo
+- Sección de comentarios: textarea de agregar al principio (Enter inserta salto de línea, botón "Agregar" envía), lista debajo ordenada del más reciente al más antiguo
+
+**Textos expandibles:** la descripción y cada comentario muestran un máximo de 3 líneas con `...` cuando hay más contenido. Un botón "Ver más / Ver menos" permite expandirlos individualmente. Los saltos de línea se respetan visualmente.
+
+**Eliminar comentario:** cada comentario tiene un botón `×` discreto. Al hacer click aparece una confirmación inline (`¿Eliminar? Sí / No`) sin abrir ningún modal adicional.
+
+**Eliminar tarea:** el botón "Eliminar" del header despliega una zona de confirmación donde hay que escribir la palabra `eliminar` para habilitar el botón "Confirmar". Al confirmar, la tarea desaparece del tablero inmediatamente y se borran también todos sus comentarios y labels.
 
 ### Labels
 
@@ -182,7 +192,7 @@ Cada tarea puede tener múltiples labels de texto libre. Las labels solo son ges
 #### Edición de tarea
 Se abre desde el botón "Editar" del modal de detalle.
 
-Mismos campos que el modal de nueva tarea, prellenados con los valores actuales. Incluye botón **Eliminar** que borra la tarea permanentemente.
+Mismos campos que el modal de nueva tarea, prellenados con los valores actuales. Incluye botón **Eliminar** que borra la tarea permanentemente (sin confirmación adicional, a diferencia del botón del modal de detalle).
 
 ---
 
@@ -390,8 +400,9 @@ Todas las rutas requieren `Authorization: Bearer <idToken>` (JWT de Cognito).
 | `GET` | `/tasks` | Lista todas las tareas con sus comentarios |
 | `POST` | `/tasks` | Crea una tarea |
 | `PUT` | `/tasks/{id}` | Actualiza campos de una tarea |
-| `DELETE` | `/tasks/{id}` | Elimina una tarea |
+| `DELETE` | `/tasks/{id}` | Elimina una tarea y todos sus comentarios y labels |
 | `POST` | `/tasks/{id}/comments` | Agrega un comentario (`{ "body": "..." }`) |
+| `DELETE` | `/tasks/{id}/comments/{commentId}` | Elimina un comentario |
 | `GET` | `/labels` | Lista todos los nombres de labels únicos del usuario |
 | `GET` | `/tasks/{id}/labels` | Lista las labels de una tarea |
 | `POST` | `/tasks/{id}/labels` | Agrega una label a una tarea (`{ "name": "..." }`) |

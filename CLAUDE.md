@@ -83,11 +83,14 @@ Cognito User Pool (Google OAuth2) emite JWTs que valida API Gateway
 |---|---|
 | Tarea | `TASK#{taskId}` |
 | Comentario | `COMMENT#{taskId}#{commentId}` |
+| Label | `LABEL#{taskId}#{labelId}` |
 
 **Campos de tarea:** `taskId`, `name`, `body`, `status`, `kind`, `dueDate`, `nextDate`, `createdAt`  
 **Campos de comentario:** `taskId`, `commentId`, `body`, `createdAt`
 
 **IDs** generados en `backend/src/lib/dynamo.ts:newId()` — base36 timestamp + random.
+
+**Helpers de DynamoDB (`backend/src/lib/dynamo.ts`):** `putItem`, `getItem`, `queryItems`, `updateItem`, `deleteItem`, `batchDeleteItems` (chunks de 25, límite de DynamoDB BatchWrite).
 
 ---
 
@@ -202,7 +205,9 @@ Todos los modales se cierran con **Escape** o haciendo click fuera del área del
 ### Modal de detalle (`TaskDetail`)
 - Se abre al hacer click en una tarjeta (modo Kanban) o en una fila (modo Lista).
 - Muestra: título, selector visual de estado (pills clicables que cambian el estado en tiempo real vía `PUT /tasks/{id}`), descripción, tipo, fecha de creación, fecha límite o siguiente fecha con indicador de urgencia si aplica.
-- **Comentarios:** el input de agregar aparece primero; los comentarios se listan del más reciente al más antiguo. Envío con Enter o botón "Agregar".
+- **Descripción y comentarios** usan `ExpandableText`: respeta saltos de línea (`white-space: pre-wrap`); si el texto supera 3 líneas o 200 caracteres, se trunca con `webkit-line-clamp: 3` y aparece un botón "Ver más / Ver menos".
+- **Comentarios:** `<textarea>` de agregar al principio (2 filas, redimensionable). Enter inserta salto de línea; el botón "Agregar" (abajo a la derecha) envía. Los comentarios se listan del más reciente al más antiguo. Cada comentario tiene un botón `×` discreto que al hacer click muestra confirmación inline (`¿Eliminar? Sí / No`) → `DELETE /tasks/{id}/comments/{commentId}` → remove optimista del estado local.
+- **Eliminar tarea:** botón rojo "Eliminar" en el header (junto a "Editar"). Al hacer click despliega una zona inline donde hay que escribir `eliminar` para habilitar el botón "Confirmar". Al confirmar → `DELETE /tasks/{id}` (con cascade) → modal se cierra, tarea desaparece del tablero. El delete es optimista: la tarea se elimina del estado local antes de que la API responda.
 - Botón "Editar" en el header abre el modal de edición manteniendo la tarea activa.
 
 ### Modal de edición (`TaskModal` con tarea existente)
@@ -236,12 +241,15 @@ Base URL en `VITE_API_URL`. Todas las rutas requieren `Authorization: Bearer <id
 | GET | `/tasks` | Lista todas las tareas con sus comentarios |
 | POST | `/tasks` | Crea tarea |
 | PUT | `/tasks/{id}` | Actualiza campos: `name`, `body`, `status`, `kind`, `dueDate`, `nextDate` |
-| DELETE | `/tasks/{id}` | Elimina tarea |
+| DELETE | `/tasks/{id}` | Elimina tarea + cascade de todos sus comentarios y labels |
 | POST | `/tasks/{id}/comments` | Agrega comentario (`{ body }`) |
+| DELETE | `/tasks/{id}/comments/{commentId}` | Elimina un comentario |
 | GET | `/labels` | Lista todos los nombres de labels únicos del usuario |
 | GET | `/tasks/{id}/labels` | Lista labels de una tarea específica |
 | POST | `/tasks/{id}/labels` | Crea label en una tarea (`{ name }`) |
 | DELETE | `/tasks/{id}/labels/{labelId}` | Elimina label de una tarea |
+
+**Nota sobre respuestas 204:** `api.ts:request()` detecta status 204 o `content-length: 0` y retorna `undefined` sin llamar `res.json()`, evitando un SyntaxError en respuestas sin cuerpo.
 
 ---
 
@@ -347,6 +355,17 @@ El workflow de infra escribe `infra/.env` en tiempo de ejecución a partir de es
 
 ---
 
+## Skeleton de carga (`Board.tsx`)
+
+Durante la carga inicial (`loading === true` en `useTasks`), `Board` renderiza un skeleton en lugar del tablero real, manteniendo el mismo layout del modo activo:
+
+- **Modo Kanban:** las 7 columnas aparecen con 2 tarjetas skeleton cada una.
+- **Modo Lista:** 4 grupos skeleton con 3 filas cada uno.
+
+Animación shimmer via `@keyframes sk-shimmer` (gradiente horizontal animado). Al llegar los datos se reemplaza directamente sin flash. El toolbar (toggle de modo, botones) sigue visible durante la carga.
+
+---
+
 ## Decisiones de diseño relevantes
 
 - **Single-table DynamoDB**: todas las entidades en una sola tabla, distinguidas por el patrón `sk`.
@@ -360,3 +379,6 @@ El workflow de infra escribe `infra/.env` en tiempo de ejecución a partir de es
 - **Drag and drop nativo**: sin dependencias externas. La API de HTML5 es suficiente para el caso de uso (escritorio, mover entre columnas). El drop reutiliza el mismo `updateTask` que el selector de estado del modal.
 - **Labels cargadas lazily por tarea**: `GET /tasks/{id}/labels` solo se llama al abrir el modal, no en el page load. El page load solo carga los nombres únicos (`GET /labels`) para el autocompletado, minimizando requests.
 - **Caché local de nombres de labels**: `useLabels` mantiene la lista en memoria durante la sesión. Las labels creadas en la sesión se agregan al caché con `registerLabel` sin request adicional.
+- **Cascade delete en tarea**: `DELETE /tasks/{id}` consulta todos los items `COMMENT#{taskId}#` y `LABEL#{taskId}#` y los borra en paralelo con la tarea usando `batchDeleteItems`. Sin huérfanos en DynamoDB.
+- **Delete optimista de tarea**: `useTasks.deleteTask` actualiza el estado local antes de esperar la respuesta del API, para que el modal cierre y el tablero actualice de inmediato.
+- **`ExpandableText`**: componente interno de `TaskDetail` que trunca a 3 líneas con `webkit-line-clamp` y ofrece "Ver más / Ver menos". Respeta `\n` via `white-space: pre-wrap`. Aplica a descripción y a cada comentario.
