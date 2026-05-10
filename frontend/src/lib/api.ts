@@ -44,6 +44,9 @@ export const api = {
       body: JSON.stringify({ body: text }),
     }),
 
+  deleteComment: (taskId: string, commentId: string) =>
+    request<void>(`/tasks/${taskId}/comments/${commentId}`, { method: 'DELETE' }),
+
   getAllLabelNames: () => request<string[]>('/labels'),
 
   getTaskLabels: (taskId: string) => request<Label[]>(`/tasks/${taskId}/labels`),

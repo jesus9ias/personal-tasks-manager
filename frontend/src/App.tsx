@@ -15,7 +15,7 @@ type Modal =
 
 export default function App() {
   const { authenticated, loading: authLoading, login, logout } = useAuth();
-  const { tasks, loading, createTask, updateTask, deleteTask, addComment } =
+  const { tasks, loading, createTask, updateTask, deleteTask, addComment, deleteComment } =
     useTasks(authenticated);
   const { allLabelNames, registerLabel } = useLabels(authenticated);
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
@@ -107,6 +107,8 @@ export default function App() {
           onLabelAdded={registerLabel}
           onChangeStatus={(status) => handleChangeStatus(activeTask.id, status)}
           onAddComment={(text) => addComment(activeTask.id, text)}
+          onDeleteComment={(commentId) => deleteComment(activeTask.id, commentId)}
+          onDeleteTask={async () => { await deleteTask(activeTask.id); setModal({ kind: 'none' }); }}
           onEdit={() => setModal({ kind: 'edit', task: activeTask })}
           onClose={() => setModal({ kind: 'none' })}
         />

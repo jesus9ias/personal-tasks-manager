@@ -10,6 +10,7 @@ interface UseTasksResult {
   updateTask: (id: string, input: UpdateTaskInput) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addComment: (taskId: string, text: string) => Promise<void>;
+  deleteComment: (taskId: string, commentId: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -58,5 +59,14 @@ export function useTasks(authenticated: boolean): UseTasksResult {
     );
   };
 
-  return { tasks, loading, error, createTask, updateTask, deleteTask, addComment, refresh };
+  const deleteComment = async (taskId: string, commentId: string) => {
+    await api.deleteComment(taskId, commentId);
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, comments: t.comments.filter((c) => c.id !== commentId) } : t,
+      ),
+    );
+  };
+
+  return { tasks, loading, error, createTask, updateTask, deleteTask, addComment, deleteComment, refresh };
 }

@@ -74,6 +74,7 @@ export class ApiConstruct extends Construct {
     api.addRoutes({ path: '/tasks', methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST], integration: tasksIntegration, authorizer });
     api.addRoutes({ path: '/tasks/{id}', methods: [apigwv2.HttpMethod.PUT, apigwv2.HttpMethod.DELETE], integration: tasksIntegration, authorizer });
     api.addRoutes({ path: '/tasks/{id}/comments', methods: [apigwv2.HttpMethod.POST], integration: commentsIntegration, authorizer });
+    api.addRoutes({ path: '/tasks/{id}/comments/{commentId}', methods: [apigwv2.HttpMethod.DELETE], integration: commentsIntegration, authorizer });
     api.addRoutes({ path: '/labels', methods: [apigwv2.HttpMethod.GET], integration: labelsIntegration, authorizer });
     api.addRoutes({ path: '/tasks/{id}/labels', methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST], integration: labelsIntegration, authorizer });
     api.addRoutes({ path: '/tasks/{id}/labels/{labelId}', methods: [apigwv2.HttpMethod.DELETE], integration: labelsIntegration, authorizer });

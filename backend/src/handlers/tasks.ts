@@ -1,7 +1,7 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from 'aws-lambda';
 import {
-  putItem, queryItems, updateItem, deleteItem,
-  taskPK, taskSK, commentSK, queryItems as queryComments, newId,
+  putItem, queryItems, updateItem, deleteItem, batchDeleteItems,
+  taskPK, taskSK, newId,
 } from '../lib/dynamo';
 
 function ok(body: unknown): APIGatewayProxyResultV2 {
@@ -95,7 +95,18 @@ export async function handler(
     }
 
     if (method === 'DELETE' && taskId) {
-      await deleteItem(pk, taskSK(taskId));
+      const [comments, labels] = await Promise.all([
+        queryItems(pk, `COMMENT#${taskId}#`),
+        queryItems(pk, `LABEL#${taskId}#`),
+      ]);
+      const related = [...comments, ...labels].map((item) => ({
+        pk: item['pk'] as string,
+        sk: item['sk'] as string,
+      }));
+      await Promise.all([
+        deleteItem(pk, taskSK(taskId)),
+        batchDeleteItems(related),
+      ]);
       return { statusCode: 204, body: '' };
     }
 

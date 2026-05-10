@@ -29,17 +29,22 @@ interface Props {
   onLabelAdded: (name: string) => void;
   onChangeStatus: (status: TaskStatus) => Promise<void>;
   onAddComment: (text: string) => Promise<void>;
+  onDeleteComment: (commentId: string) => Promise<void>;
+  onDeleteTask: () => Promise<void>;
   onEdit: () => void;
   onClose: () => void;
 }
 
-export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, onAddComment, onEdit, onClose }: Props) {
+export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, onAddComment, onDeleteComment, onDeleteTask, onEdit, onClose }: Props) {
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelInput, setLabelInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState<string | null>(null);
+  const [showDeleteTask, setShowDeleteTask] = useState(false);
+  const [deleteTaskInput, setDeleteTaskInput] = useState('');
 
   useEffect(() => {
     api.getTaskLabels(task.id).then(setLabels).catch(() => {});
@@ -85,10 +90,37 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
       <div className="modal">
         <div className="modal-header">
           <h3>{task.name}</h3>
-          <button className="btn" style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={onEdit}>
-            Editar
-          </button>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button className="btn btn-danger" style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={() => { setShowDeleteTask(v => !v); setDeleteTaskInput(''); }}>
+              Eliminar
+            </button>
+            <button className="btn" style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={onEdit}>
+              Editar
+            </button>
+          </div>
         </div>
+
+        {showDeleteTask && (
+          <div className="delete-task-confirm">
+            <p>Escribe <strong>eliminar</strong> para confirmar. Se borrarán también los comentarios y etiquetas.</p>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <input
+                className="delete-task-input"
+                placeholder="eliminar"
+                value={deleteTaskInput}
+                onChange={(e) => setDeleteTaskInput(e.target.value)}
+              />
+              <button
+                className="btn btn-danger"
+                style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
+                disabled={deleteTaskInput !== 'eliminar'}
+                onClick={onDeleteTask}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="detail-section">
           <div className="detail-label">Estado</div>
@@ -219,8 +251,19 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
             )}
             {[...task.comments].reverse().map((c) => (
               <div key={c.id} className="comment-item">
+                <div className="comment-item-header">
+                  <span className="comment-date">{fmt(c.createdAt)}</span>
+                  {confirmDeleteCommentId === c.id ? (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: '#888' }}>¿Eliminar?</span>
+                      <button className="expand-btn" style={{ color: '#A32D2D' }} onClick={() => { onDeleteComment(c.id); setConfirmDeleteCommentId(null); }}>Sí</button>
+                      <button className="expand-btn" onClick={() => setConfirmDeleteCommentId(null)}>No</button>
+                    </div>
+                  ) : (
+                    <button className="comment-delete-btn" onClick={() => setConfirmDeleteCommentId(c.id)}>×</button>
+                  )}
+                </div>
                 <ExpandableText text={c.body} />
-                <div className="comment-date">{fmt(c.createdAt)}</div>
               </div>
             ))}
           </div>

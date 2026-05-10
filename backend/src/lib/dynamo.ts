@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   DeleteCommand,
+  BatchWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 
 const TABLE = process.env.TABLE_NAME!;
@@ -65,4 +66,17 @@ export async function updateItem(
 
 export async function deleteItem(pk: string, sk: string) {
   await client.send(new DeleteCommand({ TableName: TABLE, Key: { pk, sk } }));
+}
+
+export async function batchDeleteItems(keys: { pk: string; sk: string }[]) {
+  if (keys.length === 0) return;
+  // BatchWrite accepts max 25 items per call
+  for (let i = 0; i < keys.length; i += 25) {
+    const chunk = keys.slice(i, i + 25);
+    await client.send(new BatchWriteCommand({
+      RequestItems: {
+        [TABLE]: chunk.map((k) => ({ DeleteRequest: { Key: k } })),
+      },
+    }));
+  }
 }
