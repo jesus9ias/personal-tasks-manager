@@ -43,8 +43,29 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
   const [labelInput, setLabelInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [showDeleteTask, setShowDeleteTask] = useState(false);
   const [deleteTaskInput, setDeleteTaskInput] = useState('');
+  const [deletingTask, setDeletingTask] = useState(false);
+
+  async function handleDeleteComment(commentId: string) {
+    setDeletingCommentId(commentId);
+    try {
+      await onDeleteComment(commentId);
+    } finally {
+      setDeletingCommentId(null);
+      setConfirmDeleteCommentId(null);
+    }
+  }
+
+  async function handleDeleteTask() {
+    setDeletingTask(true);
+    try {
+      await onDeleteTask();
+    } finally {
+      setDeletingTask(false);
+    }
+  }
 
   useEffect(() => {
     api.getTaskLabels(task.id).then(setLabels).catch(() => {});
@@ -113,10 +134,10 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
               <button
                 className="btn btn-danger"
                 style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
-                disabled={deleteTaskInput !== 'eliminar'}
-                onClick={onDeleteTask}
+                disabled={deleteTaskInput !== 'eliminar' || deletingTask}
+                onClick={handleDeleteTask}
               >
-                Confirmar
+                {deletingTask ? 'Eliminando...' : 'Confirmar'}
               </button>
             </div>
           </div>
@@ -255,12 +276,17 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onChangeStatus, 
                   <span className="comment-date">{fmt(c.createdAt)}</span>
                   {confirmDeleteCommentId === c.id ? (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', color: '#888' }}>¿Eliminar?</span>
-                      <button className="expand-btn" style={{ color: '#A32D2D' }} onClick={() => { onDeleteComment(c.id); setConfirmDeleteCommentId(null); }}>Sí</button>
-                      <button className="expand-btn" onClick={() => setConfirmDeleteCommentId(null)}>No</button>
+                      {deletingCommentId === c.id
+                        ? <span style={{ fontSize: '11px', color: '#888' }}>Eliminando...</span>
+                        : <>
+                            <span style={{ fontSize: '11px', color: '#888' }}>¿Eliminar?</span>
+                            <button className="expand-btn" style={{ color: '#A32D2D' }} onClick={() => handleDeleteComment(c.id)}>Sí</button>
+                            <button className="expand-btn" onClick={() => setConfirmDeleteCommentId(null)}>No</button>
+                          </>
+                      }
                     </div>
                   ) : (
-                    <button className="comment-delete-btn" onClick={() => setConfirmDeleteCommentId(c.id)}>×</button>
+                    <button className="comment-delete-btn" disabled={deletingCommentId !== null} onClick={() => setConfirmDeleteCommentId(c.id)}>×</button>
                   )}
                 </div>
                 <ExpandableText text={c.body} />

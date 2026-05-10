@@ -46,8 +46,8 @@ export function useTasks(authenticated: boolean): UseTasksResult {
   };
 
   const deleteTask = async (id: string) => {
-    await api.deleteTask(id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    await api.deleteTask(id);
   };
 
   const addComment = async (taskId: string, text: string) => {
