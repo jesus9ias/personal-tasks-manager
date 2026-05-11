@@ -1,3 +1,4 @@
+import * as Dialog from '@radix-ui/react-dialog';
 import type { ReactNode } from 'react';
 
 interface ModalProps {
@@ -7,8 +8,13 @@ interface ModalProps {
 
 export function Modal({ onClose, children }: ModalProps) {
   return (
-    <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">{children}</div>
-    </div>
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="overlay" />
+        <Dialog.Content className="modal" aria-describedby={undefined}>
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

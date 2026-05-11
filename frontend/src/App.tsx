@@ -56,14 +56,6 @@ export default function App() {
     localStorage.setItem(BOARD_MODE_KEY, next);
   }
 
-  useEffect(() => {
-    if (modal.kind === 'none') return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setModal({ kind: 'none' });
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [modal.kind]);
 
   if (authLoading) {
     return (

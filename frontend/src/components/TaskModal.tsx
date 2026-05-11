@@ -67,14 +67,18 @@ export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Pr
 
       <div className="row2">
         <Field label="Estado">
-          <Select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
-            {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
+          <Select
+            value={status}
+            onValueChange={(v) => setStatus(v as TaskStatus)}
+            options={STATES.map((s) => ({ value: s, label: s }))}
+          />
         </Field>
         <Field label="Tipo">
-          <Select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)}>
-            {TASK_KINDS.map((k) => <option key={k} value={k}>{TASK_KIND_LABELS[k]}</option>)}
-          </Select>
+          <Select
+            value={kind}
+            onValueChange={(v) => setKind(v as TaskKind)}
+            options={TASK_KINDS.map((k) => ({ value: k, label: TASK_KIND_LABELS[k] }))}
+          />
         </Field>
       </div>
 
