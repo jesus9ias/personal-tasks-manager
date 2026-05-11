@@ -7,6 +7,7 @@ import { Board } from './components/Board';
 import { FilterBarControls, FilterCriteriaPanel } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
+import { Button } from './components/ui';
 import type { Task, TaskStatus, BoardMode, CreateTaskInput, Theme } from './types';
 
 type Modal =
@@ -80,9 +81,9 @@ export default function App() {
         <div className="login-screen">
           <h1>Administrador de tareas personales</h1>
           <p>Inicia sesión para acceder a tu tablero.</p>
-          <button className="btn btn-primary" onClick={login}>
+          <Button variant="primary" onClick={login}>
             Continuar con Google
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -112,9 +113,9 @@ export default function App() {
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
-        <button className="btn app-header-btn" onClick={logout}>
+        <Button className="app-header-btn" onClick={logout}>
           Salir
-        </button>
+        </Button>
       </header>
 
       <div className="app-subheader">
@@ -141,9 +142,9 @@ export default function App() {
               <span className="btn-label">Lista</span><span className="btn-icon">☰</span>
             </button>
           </div>
-          <button className="btn btn-primary" onClick={() => setModal({ kind: 'new' })}>
+          <Button variant="primary" onClick={() => setModal({ kind: 'new' })}>
             <span className="btn-label">Nueva tarea</span><span className="btn-icon">+</span>
-          </button>
+          </Button>
         </div>
         <FilterCriteriaPanel
           criteria={filterState.criteria}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Task, CreateTaskInput, TaskStatus, TaskKind } from '../types';
 import { STATES, TASK_KINDS, TASK_KIND_LABELS } from '../types';
+import { Button, Field, Input, Modal, Select, Textarea } from './ui';
 
 interface Props {
   task?: Task;
@@ -48,70 +49,59 @@ export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Pr
   }
 
   return (
-    <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <h3>{isEdit ? 'Editar tarea' : 'Nueva tarea'}</h3>
+    <Modal onClose={onClose}>
+      <h3>{isEdit ? 'Editar tarea' : 'Nueva tarea'}</h3>
 
-        <div className="field">
-          <label>Nombre *</label>
-          <input
-            className={nameError ? 'error' : ''}
-            value={name}
-            onChange={(e) => { setName(e.target.value); setNameError(false); }}
-            placeholder="Nombre de la tarea"
-          />
-        </div>
+      <Field label="Nombre *">
+        <Input
+          error={nameError}
+          value={name}
+          onChange={(e) => { setName(e.target.value); setNameError(false); }}
+          placeholder="Nombre de la tarea"
+        />
+      </Field>
 
-        <div className="field">
-          <label>Descripción</label>
-          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descripción de la tarea" />
-        </div>
+      <Field label="Descripción">
+        <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descripción de la tarea" />
+      </Field>
 
-        <div className="row2">
-          <div className="field">
-            <label>Estado</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
-              {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Tipo</label>
-            <select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)}>
-              {TASK_KINDS.map((k) => <option key={k} value={k}>{TASK_KIND_LABELS[k]}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {kind === 'ONE_TIME' && (
-          <div className="field">
-            <label>Fecha límite</label>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-        )}
-        {kind === 'RECURRING' && (
-          <div className="field">
-            <label>Siguiente fecha</label>
-            <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
-          </div>
-        )}
-
-        <div className="field">
-          <label>Fecha de creación</label>
-          <input value={isEdit ? task.createdAt : today} disabled />
-        </div>
-
-        <div className="modal-actions">
-          {isEdit && onDelete && (
-            <button className="btn btn-danger" onClick={handleDelete} disabled={saving}>
-              Eliminar
-            </button>
-          )}
-          <button className="btn" onClick={onClose} disabled={saving}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {isEdit ? 'Guardar cambios' : 'Crear tarea'}
-          </button>
-        </div>
+      <div className="row2">
+        <Field label="Estado">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
+            {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+        </Field>
+        <Field label="Tipo">
+          <Select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)}>
+            {TASK_KINDS.map((k) => <option key={k} value={k}>{TASK_KIND_LABELS[k]}</option>)}
+          </Select>
+        </Field>
       </div>
-    </div>
+
+      {kind === 'ONE_TIME' && (
+        <Field label="Fecha límite">
+          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </Field>
+      )}
+      {kind === 'RECURRING' && (
+        <Field label="Siguiente fecha">
+          <Input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+        </Field>
+      )}
+
+      <Field label="Fecha de creación">
+        <Input value={isEdit ? task.createdAt : today} disabled />
+      </Field>
+
+      <div className="modal-actions">
+        {isEdit && onDelete && (
+          <Button variant="danger" onClick={handleDelete} disabled={saving}>Eliminar</Button>
+        )}
+        <Button onClick={onClose} disabled={saving}>Cancelar</Button>
+        <Button variant="primary" onClick={handleSave} disabled={saving}>
+          {isEdit ? 'Guardar cambios' : 'Crear tarea'}
+        </Button>
+      </div>
+    </Modal>
   );
 }

@@ -3,6 +3,7 @@ import type { Task, TaskStatus, Label } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KIND_LABELS } from '../types';
 import { fmt, dateUrgency, isValidLabelName, LABEL_MAX_LENGTH } from '../lib/utils';
 import { api } from '../lib/api';
+import { Button, Modal, Textarea } from './ui';
 
 function ExpandableText({ text, className }: { text: string; className?: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -110,205 +111,206 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
   }
 
   return (
-    <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-header">
-          <h3>{task.name}</h3>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button className="btn btn-danger" style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={() => { setShowDeleteTask(v => !v); setDeleteTaskInput(''); }}>
-              Eliminar
-            </button>
-            <button className="btn" style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={onEdit}>
-              Editar
-            </button>
-          </div>
-        </div>
-
-        {showDeleteTask && (
-          <div className="delete-task-confirm">
-            <p>Escribe <strong>eliminar</strong> para confirmar. Se borrarán también los comentarios y etiquetas.</p>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-              <input
-                className="delete-task-input"
-                placeholder="eliminar"
-                value={deleteTaskInput}
-                onChange={(e) => setDeleteTaskInput(e.target.value)}
-              />
-              <button
-                className="btn btn-danger"
-                style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
-                disabled={deleteTaskInput !== 'eliminar' || deletingTask}
-                onClick={handleDeleteTask}
-              >
-                {deletingTask ? 'Eliminando...' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="detail-section">
-          <div className="detail-label">Estado</div>
-          <div className="status-select-row">
-            {STATES.map((s) => (
-              <span
-                key={s}
-                className={`status-pill${task.status === s ? ' active' : ''}`}
-                style={{ background: STATE_BG[s], color: STATE_COLORS[s] }}
-                onClick={() => onChangeStatus(s)}
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {task.body && (
-          <div className="detail-section">
-            <div className="detail-label">Descripción</div>
-            <ExpandableText text={task.body} className="detail-value" />
-          </div>
-        )}
-
-        <div className="row2" style={{ marginBottom: '14px' }}>
-          <div>
-            <div className="detail-label">Tipo</div>
-            <div className="detail-value">{TASK_KIND_LABELS[task.kind]}</div>
-          </div>
-          <div>
-            <div className="detail-label">Creado</div>
-            <div className="detail-value">{fmt(task.createdAt)}</div>
-          </div>
-        </div>
-
-        {task.kind === 'ONE_TIME' && task.dueDate && (() => {
-          const u = dateUrgency(task.dueDate, task.status);
-          return (
-            <div className="detail-section">
-              <div className="detail-label">Fecha límite</div>
-              <div className="detail-value">
-                {fmt(task.dueDate)}
-                {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
-              </div>
-            </div>
-          );
-        })()}
-        {task.kind === 'RECURRING' && task.nextDate && (() => {
-          const u = dateUrgency(task.nextDate, task.status);
-          return (
-            <div className="detail-section">
-              <div className="detail-label">Siguiente fecha</div>
-              <div className="detail-value">
-                {fmt(task.nextDate)}
-                {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
-              </div>
-            </div>
-          );
-        })()}
-
-        <div className="detail-section">
-          <div className="detail-label">Labels</div>
-          <div className="label-list">
-            {labels.map((l) => (
-              <span key={l.id} className="label-chip">
-                {l.name}
-                <button onClick={() => handleRemoveLabel(l.id)} title="Quitar label">×</button>
-              </span>
-            ))}
-          </div>
-          <div className="label-input-wrap">
-            <input
-              ref={labelInputRef}
-              className="label-input"
-              value={labelInput}
-              placeholder="Agregar label..."
-              onChange={(e) => { setLabelInput(e.target.value); setShowSuggestions(true); }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && isValidInput && !alreadyOnTask) handleAddLabel(labelInput);
-                if (e.key === 'Escape') { setLabelInput(''); setShowSuggestions(false); }
-              }}
-              maxLength={50}
-            />
-            {showSuggestions && labelInputTrimmed && (
-              <div className="label-suggestions">
-                {suggestions.map((n) => (
-                  <div key={n} className="label-suggestion-item" onMouseDown={() => handleAddLabel(n)}>
-                    {n}
-                  </div>
-                ))}
-                {isValidInput && !alreadyOnTask && !suggestions.some((n) => n.toLowerCase() === labelInputTrimmed.toLowerCase()) && (
-                  <div className="label-suggestion-item label-suggestion-new" onMouseDown={() => handleAddLabel(labelInput)}>
-                    Crear «{labelInputTrimmed}»
-                  </div>
-                )}
-                {!isValidInput && labelInputTrimmed && (
-                  <div className="label-suggestion-empty">
-                    {labelInputTrimmed.length > LABEL_MAX_LENGTH ? `Máximo ${LABEL_MAX_LENGTH} caracteres` : 'Solo letras, números, espacios, - y _'}
-                  </div>
-                )}
-                {alreadyOnTask && (
-                  <div className="label-suggestion-empty">Ya está en esta tarea</div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="detail-section">
-          <div className="detail-label">Comentarios</div>
-          <div className="add-comment">
-            <textarea
-              ref={commentRef}
-              placeholder="Agregar comentario..."
-              rows={2}
-              disabled={submittingComment}
-              style={submittingComment ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-            />
-            <div className="add-comment-actions">
-              <button
-                className="btn"
-                style={{ fontSize: '12px', padding: '5px 10px', ...(submittingComment ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
-                onClick={submitComment}
-                disabled={submittingComment}
-              >
-                {submittingComment ? 'Agregando…' : 'Agregar'}
-              </button>
-            </div>
-          </div>
-          <div className="comment-list">
-            {task.comments.length === 0 && (
-              <div style={{ fontSize: '12px', color: '#aaa' }}>Sin comentarios aún</div>
-            )}
-            {[...task.comments].reverse().map((c) => (
-              <div key={c.id} className="comment-item">
-                <div className="comment-item-header">
-                  <span className="comment-date">{fmt(c.createdAt)}</span>
-                  {confirmDeleteCommentId === c.id ? (
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      {deletingCommentId === c.id
-                        ? <span style={{ fontSize: '11px', color: '#888' }}>Eliminando...</span>
-                        : <>
-                            <span style={{ fontSize: '11px', color: '#888' }}>¿Eliminar?</span>
-                            <button className="expand-btn" style={{ color: '#A32D2D' }} onClick={() => handleDeleteComment(c.id)}>Sí</button>
-                            <button className="expand-btn" onClick={() => setConfirmDeleteCommentId(null)}>No</button>
-                          </>
-                      }
-                    </div>
-                  ) : (
-                    <button className="comment-delete-btn" disabled={deletingCommentId !== null} onClick={() => setConfirmDeleteCommentId(c.id)}>×</button>
-                  )}
-                </div>
-                <ExpandableText text={c.body} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="modal-actions">
-          <button className="btn" onClick={onClose}>Cerrar</button>
+    <Modal onClose={onClose}>
+      <div className="modal-header">
+        <h3>{task.name}</h3>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <Button
+            variant="danger"
+            style={{ whiteSpace: 'nowrap', fontSize: '12px' }}
+            onClick={() => { setShowDeleteTask(v => !v); setDeleteTaskInput(''); }}
+          >
+            Eliminar
+          </Button>
+          <Button style={{ whiteSpace: 'nowrap', fontSize: '12px' }} onClick={onEdit}>
+            Editar
+          </Button>
         </div>
       </div>
-    </div>
+
+      {showDeleteTask && (
+        <div className="delete-task-confirm">
+          <p>Escribe <strong>eliminar</strong> para confirmar. Se borrarán también los comentarios y etiquetas.</p>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <input
+              className="delete-task-input"
+              placeholder="eliminar"
+              value={deleteTaskInput}
+              onChange={(e) => setDeleteTaskInput(e.target.value)}
+            />
+            <Button
+              variant="danger"
+              style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
+              disabled={deleteTaskInput !== 'eliminar' || deletingTask}
+              onClick={handleDeleteTask}
+            >
+              {deletingTask ? 'Eliminando...' : 'Confirmar'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="detail-section">
+        <div className="detail-label">Estado</div>
+        <div className="status-select-row">
+          {STATES.map((s) => (
+            <span
+              key={s}
+              className={`status-pill${task.status === s ? ' active' : ''}`}
+              style={{ background: STATE_BG[s], color: STATE_COLORS[s] }}
+              onClick={() => onChangeStatus(s)}
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {task.body && (
+        <div className="detail-section">
+          <div className="detail-label">Descripción</div>
+          <ExpandableText text={task.body} className="detail-value" />
+        </div>
+      )}
+
+      <div className="row2" style={{ marginBottom: '14px' }}>
+        <div>
+          <div className="detail-label">Tipo</div>
+          <div className="detail-value">{TASK_KIND_LABELS[task.kind]}</div>
+        </div>
+        <div>
+          <div className="detail-label">Creado</div>
+          <div className="detail-value">{fmt(task.createdAt)}</div>
+        </div>
+      </div>
+
+      {task.kind === 'ONE_TIME' && task.dueDate && (() => {
+        const u = dateUrgency(task.dueDate, task.status);
+        return (
+          <div className="detail-section">
+            <div className="detail-label">Fecha límite</div>
+            <div className="detail-value">
+              {fmt(task.dueDate)}
+              {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
+            </div>
+          </div>
+        );
+      })()}
+      {task.kind === 'RECURRING' && task.nextDate && (() => {
+        const u = dateUrgency(task.nextDate, task.status);
+        return (
+          <div className="detail-section">
+            <div className="detail-label">Siguiente fecha</div>
+            <div className="detail-value">
+              {fmt(task.nextDate)}
+              {u && <span title={URGENCY[u].title} style={{ marginLeft: '6px' }}>{URGENCY[u].icon}</span>}
+            </div>
+          </div>
+        );
+      })()}
+
+      <div className="detail-section">
+        <div className="detail-label">Labels</div>
+        <div className="label-list">
+          {labels.map((l) => (
+            <span key={l.id} className="label-chip">
+              {l.name}
+              <button onClick={() => handleRemoveLabel(l.id)} title="Quitar label">×</button>
+            </span>
+          ))}
+        </div>
+        <div className="label-input-wrap">
+          <input
+            ref={labelInputRef}
+            className="label-input"
+            value={labelInput}
+            placeholder="Agregar label..."
+            onChange={(e) => { setLabelInput(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && isValidInput && !alreadyOnTask) handleAddLabel(labelInput);
+              if (e.key === 'Escape') { setLabelInput(''); setShowSuggestions(false); }
+            }}
+            maxLength={50}
+          />
+          {showSuggestions && labelInputTrimmed && (
+            <div className="label-suggestions">
+              {suggestions.map((n) => (
+                <div key={n} className="label-suggestion-item" onMouseDown={() => handleAddLabel(n)}>
+                  {n}
+                </div>
+              ))}
+              {isValidInput && !alreadyOnTask && !suggestions.some((n) => n.toLowerCase() === labelInputTrimmed.toLowerCase()) && (
+                <div className="label-suggestion-item label-suggestion-new" onMouseDown={() => handleAddLabel(labelInput)}>
+                  Crear «{labelInputTrimmed}»
+                </div>
+              )}
+              {!isValidInput && labelInputTrimmed && (
+                <div className="label-suggestion-empty">
+                  {labelInputTrimmed.length > LABEL_MAX_LENGTH ? `Máximo ${LABEL_MAX_LENGTH} caracteres` : 'Solo letras, números, espacios, - y _'}
+                </div>
+              )}
+              {alreadyOnTask && (
+                <div className="label-suggestion-empty">Ya está en esta tarea</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="detail-section">
+        <div className="detail-label">Comentarios</div>
+        <div className="add-comment">
+          <Textarea
+            ref={commentRef}
+            placeholder="Agregar comentario..."
+            rows={2}
+            disabled={submittingComment}
+            style={submittingComment ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+          />
+          <div className="add-comment-actions">
+            <Button
+              style={{ fontSize: '12px', padding: '5px 10px', ...(submittingComment ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+              onClick={submitComment}
+              disabled={submittingComment}
+            >
+              {submittingComment ? 'Agregando…' : 'Agregar'}
+            </Button>
+          </div>
+        </div>
+        <div className="comment-list">
+          {task.comments.length === 0 && (
+            <div style={{ fontSize: '12px', color: 'var(--text-4)' }}>Sin comentarios aún</div>
+          )}
+          {[...task.comments].reverse().map((c) => (
+            <div key={c.id} className="comment-item">
+              <div className="comment-item-header">
+                <span className="comment-date">{fmt(c.createdAt)}</span>
+                {confirmDeleteCommentId === c.id ? (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {deletingCommentId === c.id
+                      ? <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Eliminando...</span>
+                      : <>
+                          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>¿Eliminar?</span>
+                          <button className="expand-btn" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteComment(c.id)}>Sí</button>
+                          <button className="expand-btn" onClick={() => setConfirmDeleteCommentId(null)}>No</button>
+                        </>
+                    }
+                  </div>
+                ) : (
+                  <button className="comment-delete-btn" disabled={deletingCommentId !== null} onClick={() => setConfirmDeleteCommentId(c.id)}>×</button>
+                )}
+              </div>
+              <ExpandableText text={c.body} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="modal-actions">
+        <Button onClick={onClose}>Cerrar</Button>
+      </div>
+    </Modal>
   );
 }
