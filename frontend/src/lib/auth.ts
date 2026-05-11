@@ -10,6 +10,7 @@ interface TokenSet {
 }
 
 const TOKEN_KEY = 'auth_tokens';
+const PKCE_VERIFIER_KEY = 'pkce_verifier';
 
 function loadTokens(): TokenSet | null {
   try {
@@ -52,7 +53,7 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 export async function signIn(): Promise<void> {
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
-  sessionStorage.setItem('pkce_verifier', verifier);
+  sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -67,7 +68,7 @@ export async function signIn(): Promise<void> {
 }
 
 export async function handleCallback(code: string): Promise<void> {
-  const verifier = sessionStorage.getItem('pkce_verifier');
+  const verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
   if (!verifier) throw new Error('Missing PKCE verifier');
 
   const res = await fetch(`${COGNITO_DOMAIN}/oauth2/token`, {
@@ -95,7 +96,7 @@ export async function handleCallback(code: string): Promise<void> {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
   saveTokens(tokenSet);
-  sessionStorage.removeItem('pkce_verifier');
+  sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 }
 
 async function refreshTokens(): Promise<void> {

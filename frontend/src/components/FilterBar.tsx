@@ -1,5 +1,5 @@
 import type { FilterCriterion, FilterField, FilterOperator, TaskStatus, UrgencyLevel } from '../types';
-import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KINDS, TASK_KIND_LABELS } from '../types';
+import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KINDS, TASK_KIND_LABELS, URGENCY_LEVELS } from '../types';
 import { useState } from 'react';
 
 const FIELD_LABELS: Record<FilterField, string> = {
@@ -248,7 +248,7 @@ function CriterionRow({
       const sel: UrgencyLevel[] = Array.isArray(value) ? (value as UrgencyLevel[]) : [];
       return (
         <div className="criterion-chips">
-          {(['warning', 'alert', 'overdue'] as UrgencyLevel[]).map((u) => {
+          {URGENCY_LEVELS.map((u) => {
             const active = sel.includes(u);
             return (
               <button

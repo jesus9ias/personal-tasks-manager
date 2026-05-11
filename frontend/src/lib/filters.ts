@@ -39,7 +39,7 @@ function evalLabels(names: string[], op: string, val: string[] | null): boolean 
   return true;
 }
 
-function isActive(c: FilterCriterion): boolean {
+export function isActive(c: FilterCriterion): boolean {
   if (c.field === 'comments') return true;
   if (c.field === 'urgency' && c.operator === 'has_not') return true;
   if (c.value === null || c.value === '') return false;

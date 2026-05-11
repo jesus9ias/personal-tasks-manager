@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Task, TaskStatus } from '../types';
-import { STATES, STATE_COLORS, URGENCY, TASK_KIND_LABELS } from '../types';
-import { fmt, dateUrgency } from '../lib/utils';
+import { STATES, STATE_COLORS, URGENCY, TASK_KIND_LABELS, TASK_KIND_ICONS } from '../types';
+import { fmt, dateUrgency, getTaskDate } from '../lib/utils';
 
 interface Props {
   tasks: Task[];
@@ -58,23 +58,17 @@ export function ListView({ tasks, onCardClick, onAddToColumn }: Props) {
                   <div className="empty-col" style={{ padding: '10px 12px' }}>Sin tareas</div>
                 ) : (
                   group.map((task) => {
-                    const dateStr = task.kind === 'ONE_TIME' ? task.dueDate : task.nextDate;
+                    const dateStr = getTaskDate(task);
                     const u = dateUrgency(dateStr, task.status);
                     return (
                       <div key={task.id} className="list-row" onClick={() => onCardClick(task)}>
                         <span className="list-cell-title">{task.name}</span>
-                        <span className="list-cell-badge">
-                          <span className={`badge badge-${task.kind}`}>
-                            {TASK_KIND_LABELS[task.kind]}
-                          </span>
+                        {u && <span className="list-cell-urgency" title={URGENCY[u].title}>{URGENCY[u].icon}</span>}
+                        <span className="list-cell-kind" title={TASK_KIND_LABELS[task.kind]}>
+                          {TASK_KIND_ICONS[task.kind]}
                         </span>
                         <span className="list-cell-date">
-                          {dateStr && (
-                            <span className="date-tag">
-                              {task.kind === 'ONE_TIME' ? '📅' : '🔁'} {fmt(dateStr)}
-                              {u && <span title={URGENCY[u].title}> {URGENCY[u].icon}</span>}
-                            </span>
-                          )}
+                          {dateStr ? <span className="date-tag">{fmt(dateStr)}</span> : null}
                         </span>
                       </div>
                     );

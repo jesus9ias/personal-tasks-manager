@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Task, FilterCriterion, FilterField, FilterOperator, FilterState } from '../types';
-import { applyFilters } from '../lib/filters';
+import { applyFilters, isActive } from '../lib/filters';
 
 const DEFAULT_OPERATOR: Record<FilterField, FilterOperator> = {
   name: 'contains',
@@ -17,13 +17,6 @@ const DEFAULT_OPERATOR: Record<FilterField, FilterOperator> = {
 function initialValue(field: FilterField): FilterCriterion['value'] {
   if (field === 'status' || field === 'urgency' || field === 'labels') return [];
   return null;
-}
-
-function isActive(c: FilterCriterion): boolean {
-  if (c.field === 'comments') return true;
-  if (c.field === 'urgency' && c.operator === 'has_not') return true;
-  if (c.value === null || c.value === '') return false;
-  return !(Array.isArray(c.value) && c.value.length === 0);
 }
 
 export function useFilters() {

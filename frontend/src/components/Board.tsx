@@ -1,5 +1,6 @@
 import type { Task, TaskStatus, BoardMode } from '../types';
 import { STATES, STATE_COLORS } from '../types';
+import { getTaskDate } from '../lib/utils';
 import { Column } from './Column';
 import { ListView } from './ListView';
 
@@ -62,9 +63,20 @@ interface Props {
   onMoveTask: (taskId: string, status: TaskStatus) => void;
 }
 
+function sortByDate(list: Task[]) {
+  return [...list].sort((a, b) => {
+    const da = getTaskDate(a), db = getTaskDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+}
+
 export function Board({ tasks, loading, mode, onCardClick, onAddToColumn, onMoveTask }: Props) {
+  const sorted = sortByDate(tasks);
   const byState = Object.fromEntries(
-    STATES.map((s) => [s, tasks.filter((t) => t.status === s)]),
+    STATES.map((s) => [s, sorted.filter((t) => t.status === s)]),
   ) as Record<string, Task[]>;
 
   if (loading) {
@@ -85,6 +97,6 @@ export function Board({ tasks, loading, mode, onCardClick, onAddToColumn, onMove
       ))}
     </div>
   ) : (
-    <ListView tasks={tasks} onCardClick={onCardClick} onAddToColumn={onAddToColumn} />
+    <ListView tasks={sorted} onCardClick={onCardClick} onAddToColumn={onAddToColumn} />
   );
 }

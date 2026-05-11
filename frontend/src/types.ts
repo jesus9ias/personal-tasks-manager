@@ -127,3 +127,12 @@ export const TASK_KIND_LABELS: Record<TaskKind, string> = {
   ONE_TIME: 'Única',
   RECURRING: 'Recurrente',
 };
+
+export const TASK_KIND_ICONS: Record<TaskKind, string> = {
+  ONE_TIME: '📅',
+  RECURRING: '🔁',
+};
+
+export const URGENCY_LEVELS: UrgencyLevel[] = ['warning', 'alert', 'overdue'];
+
+export type Theme = 'light' | 'dark';

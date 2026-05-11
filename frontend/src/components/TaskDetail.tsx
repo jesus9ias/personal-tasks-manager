@@ -1,10 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import type { Task, TaskStatus, Label } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KIND_LABELS } from '../types';
-import { fmt, dateUrgency } from '../lib/utils';
+import { fmt, dateUrgency, isValidLabelName, LABEL_MAX_LENGTH } from '../lib/utils';
 import { api } from '../lib/api';
-
-const LABEL_REGEX = /^[a-zA-Z0-9\-_ ]+$/;
 
 function ExpandableText({ text, className }: { text: string; className?: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -40,7 +38,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
-  const [labels, setLabels] = useState<Label[]>([]);
+  const [labels, setLabels] = useState<Label[]>(task.labels);
   const [labelInput, setLabelInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [confirmDeleteCommentId, setConfirmDeleteCommentId] = useState<string | null>(null);
@@ -48,6 +46,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
   const [showDeleteTask, setShowDeleteTask] = useState(false);
   const [deleteTaskInput, setDeleteTaskInput] = useState('');
   const [deletingTask, setDeletingTask] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   async function handleDeleteComment(commentId: string) {
     setDeletingCommentId(commentId);
@@ -68,14 +67,8 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
     }
   }
 
-  useEffect(() => {
-    api.getTaskLabels(task.id).then(setLabels).catch(() => {});
-  }, [task.id]);
-
   const labelInputTrimmed = labelInput.trim();
-  const isValidInput = labelInputTrimmed.length > 0
-    && labelInputTrimmed.length <= 50
-    && LABEL_REGEX.test(labelInputTrimmed);
+  const isValidInput = isValidLabelName(labelInputTrimmed);
   const alreadyOnTask = labels.some((l) => l.name.toLowerCase() === labelInputTrimmed.toLowerCase());
 
   const suggestions = allLabelNames.filter(
@@ -86,7 +79,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
 
   async function handleAddLabel(name: string) {
     const trimmed = name.trim();
-    if (!trimmed || trimmed.length > 50 || !LABEL_REGEX.test(trimmed)) return;
+    if (!isValidLabelName(trimmed)) return;
     if (labels.some((l) => l.name.toLowerCase() === trimmed.toLowerCase())) return;
     const label = await api.addLabel(task.id, trimmed);
     const next = [...labels, label];
@@ -106,9 +99,14 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
 
   async function submitComment() {
     const text = commentRef.current?.value.trim();
-    if (!text) return;
-    await onAddComment(text);
-    if (commentRef.current) commentRef.current.value = '';
+    if (!text || submittingComment) return;
+    setSubmittingComment(true);
+    try {
+      await onAddComment(text);
+      if (commentRef.current) commentRef.current.value = '';
+    } finally {
+      setSubmittingComment(false);
+    }
   }
 
   return (
@@ -246,7 +244,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
                 )}
                 {!isValidInput && labelInputTrimmed && (
                   <div className="label-suggestion-empty">
-                    {labelInputTrimmed.length > 50 ? 'Máximo 50 caracteres' : 'Solo letras, números, espacios, - y _'}
+                    {labelInputTrimmed.length > LABEL_MAX_LENGTH ? `Máximo ${LABEL_MAX_LENGTH} caracteres` : 'Solo letras, números, espacios, - y _'}
                   </div>
                 )}
                 {alreadyOnTask && (
@@ -264,10 +262,17 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
               ref={commentRef}
               placeholder="Agregar comentario..."
               rows={2}
+              disabled={submittingComment}
+              style={submittingComment ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             />
             <div className="add-comment-actions">
-              <button className="btn" style={{ fontSize: '12px', padding: '5px 10px' }} onClick={submitComment}>
-                Agregar
+              <button
+                className="btn"
+                style={{ fontSize: '12px', padding: '5px 10px', ...(submittingComment ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+                onClick={submitComment}
+                disabled={submittingComment}
+              >
+                {submittingComment ? 'Agregando…' : 'Agregar'}
               </button>
             </div>
           </div>

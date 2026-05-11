@@ -123,9 +123,10 @@ El tablero tiene dos modos de visualización. El modo activo se guarda en `local
 #### Modo Kanban
 Columnas horizontales scrolleables, una por cada estado. Cada tarjeta muestra:
 - Título y descripción (truncada a 2 líneas)
-- Badge de tipo (Única / Recurrente)
-- Fecha con icono de urgencia si aplica
 - Borde izquierdo en el color del estado
+- Fila inferior: fecha a la izquierda; a la derecha, icono de urgencia (si aplica) e icono de tipo (📅 Única / 🔁 Recurrente) con tooltip al hover
+
+Las tareas de cada columna se ordenan automáticamente de fecha más próxima arriba a más lejana abajo. Las tareas sin fecha van al final.
 
 El header de cada columna muestra el nombre del estado, el conteo de tarjetas y un botón `+` para crear una tarea directamente en ese estado.
 
@@ -134,7 +135,9 @@ Las tarjetas son **arrastrables entre columnas** (drag and drop). Al soltar una 
 #### Modo Lista
 Vista vertical centrada, agrupada por estado en el mismo orden que el Kanban. Cada grupo es colapsable individualmente mediante el botón ▶/▼ de su header. El header de cada grupo también tiene el conteo y el botón `+`.
 
-Cada fila de tarea muestra: título | badge de tipo | fecha con icono de urgencia.
+Cada fila de tarea muestra: título | icono de urgencia (si aplica) | icono de tipo con tooltip | fecha alineada a la derecha.
+
+Las tareas de cada grupo siguen el mismo orden por fecha que el modo Kanban.
 
 ### Indicadores de urgencia de fechas
 
@@ -175,6 +178,8 @@ Muestra:
 
 **Textos expandibles:** la descripción y cada comentario muestran un máximo de 3 líneas con `...` cuando hay más contenido. Un botón "Ver más / Ver menos" permite expandirlos individualmente. Los saltos de línea se respetan visualmente.
 
+**Agregar comentario:** mientras el request está en vuelo, el textarea y el botón "Agregar" se deshabilitan visualmente para evitar envíos duplicados. El botón cambia su texto a "Agregando…" durante la espera.
+
 **Eliminar comentario:** cada comentario tiene un botón `×` discreto. Al hacer click aparece una confirmación inline (`¿Eliminar? Sí / No`) sin abrir ningún modal adicional.
 
 **Eliminar tarea:** el botón "Eliminar" del header despliega una zona de confirmación donde hay que escribir la palabra `eliminar` para habilitar el botón "Confirmar". Al confirmar, la tarea desaparece del tablero inmediatamente y se borran también todos sus comentarios y labels.
@@ -187,7 +192,7 @@ Cada tarea puede tener múltiples labels de texto libre. Las labels solo son ges
 
 **Validación:** máximo 50 caracteres, solo letras, números, espacios, guion (`-`) y guion bajo (`_`).
 
-**Caché:** la lista de todos los nombres de labels se carga una vez al iniciar la sesión (`GET /labels`) y se mantiene en memoria. Las labels creadas durante la sesión se agregan al caché sin consultar el backend de nuevo. Los labels de cada tarea se cargan individualmente al abrir su modal (`GET /tasks/{id}/labels`).
+**Caché:** la lista de todos los nombres de labels se carga una vez al iniciar la sesión (`GET /labels`) y se mantiene en memoria. Las labels creadas durante la sesión se agregan al caché sin consultar el backend de nuevo. Las labels de cada tarea ya vienen incluidas en la respuesta de `GET /tasks`, por lo que al abrir el modal de detalle no se hace ningún request adicional.
 
 #### Edición de tarea
 Se abre desde el botón "Editar" del modal de detalle.

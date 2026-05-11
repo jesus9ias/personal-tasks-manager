@@ -25,7 +25,7 @@ frontend/src/
 ├── lib/
 │   ├── auth.ts          OAuth2 PKCE flow + gestión de tokens
 │   ├── api.ts           REST client con auto-refresh de JWT
-│   └── utils.ts         Helpers compartidos: fmt(), dateUrgency()
+│   └── utils.ts         Helpers compartidos: fmt(), dateUrgency(), getTaskDate(), isValidLabelName(), LABEL_MAX_LENGTH
 ├── hooks/
 │   ├── useAuth.ts       Estado de autenticación
 │   ├── useTasks.ts      CRUD de tareas + comentarios
@@ -114,6 +114,7 @@ Un item por label por tarea. Para obtener todos los nombres únicos del usuario 
 
 ```typescript
 BoardMode:    'kanban' | 'list'
+Theme:        'light' | 'dark'
 TaskStatus:   'Backlog' | 'Planificación' | 'Ejecución' | 'Pausado' | 'Validación' | 'Finalizado' | 'Cancelado'
 TaskKind:     'ONE_TIME' | 'RECURRING'
 UrgencyLevel: 'warning' | 'alert' | 'overdue'
@@ -130,15 +131,20 @@ interface Label { id: string; name: string; }
 | `STATE_BG` | `Record<TaskStatus, string>` | Color de fondo por estado |
 | `INACTIVE_STATUSES` | `TaskStatus[]` | Estados que desactivan los indicadores de urgencia: `['Pausado', 'Finalizado', 'Cancelado']` |
 | `URGENCY` | `Record<UrgencyLevel, {icon, title}>` | Icono y tooltip para cada nivel de urgencia de fecha |
+| `URGENCY_LEVELS` | `UrgencyLevel[]` | Lista ordenada de niveles de urgencia |
 | `TASK_KINDS` | `TaskKind[]` | Lista de tipos de tarea para select |
 | `TASK_KIND_LABELS` | `Record<TaskKind, string>` | Etiqueta de display: `ONE_TIME → 'Única'`, `RECURRING → 'Recurrente'` |
+| `TASK_KIND_ICONS` | `Record<TaskKind, string>` | Emoji de tipo: `ONE_TIME → '📅'`, `RECURRING → '🔁'` |
 
-**Helpers compartidos (`frontend/src/lib/utils.ts`):**
+**Helpers y constantes compartidas (`frontend/src/lib/utils.ts`):**
 
-| Función | Descripción |
+| Símbolo | Descripción |
 |---|---|
 | `fmt(dateStr?)` | Formatea una fecha YYYY-MM-DD a string legible en es-MX |
 | `dateUrgency(dateStr?, status?)` | Retorna `UrgencyLevel \| null` según proximidad de la fecha; devuelve `null` si el estado está en `INACTIVE_STATUSES` |
+| `getTaskDate(task)` | Retorna `task.dueDate` si `kind === 'ONE_TIME'`, `task.nextDate` si `RECURRING`. Fuente única para esta lógica en Card, ListView y Board |
+| `LABEL_MAX_LENGTH` | `50` — límite de caracteres para nombres de label |
+| `isValidLabelName(name)` | Valida que el nombre de label cumpla longitud y regex (`^[a-zA-Z0-9\-_ ]+$`) |
 
 ---
 
@@ -161,7 +167,7 @@ Carga `GET /labels` una vez en el mount (cuando el usuario está autenticado). E
 - `registerLabel(name)` — añade un nombre al caché local si no existe, sin hacer request. Se llama desde `TaskDetail` al crear una label nueva durante la sesión.
 
 ### Frontend — `TaskDetail` (sección Labels)
-- Al abrir el modal: carga `GET /tasks/{id}/labels` y guarda en estado local `labels: Label[]`.
+- Al abrir el modal: inicializa estado local `labels: Label[]` directamente desde `task.labels` (ya incluido en la respuesta de `GET /tasks`). No se hace ningún request adicional al abrir.
 - Muestra chips removibles por cada label. Click en `×` → `DELETE /tasks/{id}/labels/{labelId}` y actualiza estado local.
 - Input con dropdown de sugerencias:
   - Filtra `allLabelNames` por substring (case-insensitive), excluyendo labels ya en la tarea.
@@ -178,14 +184,16 @@ El modo activo se persiste en `localStorage` bajo la clave `board-view-mode`. El
 
 ### Modo Kanban (`'kanban'`)
 - Columnas horizontales scrolleables, una por cada `TaskStatus`.
-- Cada columna muestra sus tarjetas (`Card`) con título, descripción truncada, badge de tipo y fecha con icono de urgencia.
+- Cada tarjeta (`Card`) muestra: título, descripción truncada, y una fila inferior con la fecha a la izquierda y los iconos de urgencia + tipo (`TASK_KIND_ICONS`) a la derecha. El icono de tipo tiene `title` con el label de `TASK_KIND_LABELS`.
+- Las tarjetas de cada columna se ordenan por fecha ascendente (`getTaskDate`); las tareas sin fecha van al final. El orden se aplica en `Board.tsx` antes de distribuir por estado.
 - Header de columna: nombre del estado (en su color), conteo de tarjetas, botón `+` para crear tarea preseleccionando ese estado.
 
 ### Modo Lista (`'list'`)
 - Vista vertical centrada (`max-width: 860px`, `margin: 0 auto`).
 - Un grupo colapsable por cada `TaskStatus`, en el mismo orden que el modo Kanban.
 - **Header de grupo:** botón ▶/▼ para colapsar, nombre del estado (en su color), conteo, botón `+`.
-- **Cuerpo del grupo:** filas de tarea con tres columnas: título | badge de tipo | fecha con icono de urgencia.
+- **Cuerpo del grupo:** filas con cuatro celdas: título (flex) | icono de urgencia (18px, solo si aplica) | icono de tipo con `title` (18px) | fecha alineada a la derecha (100px).
+- Las tareas siguen el mismo orden por fecha que el modo Kanban (el sort se aplica en `Board` antes de pasar a `ListView`).
 - El estado de colapso es local al componente (no se persiste).
 - Click en cualquier fila abre el modal de detalle.
 
@@ -206,7 +214,7 @@ Todos los modales se cierran con **Escape** o haciendo click fuera del área del
 - Se abre al hacer click en una tarjeta (modo Kanban) o en una fila (modo Lista).
 - Muestra: título, selector visual de estado (pills clicables que cambian el estado en tiempo real vía `PUT /tasks/{id}`), descripción, tipo, fecha de creación, fecha límite o siguiente fecha con indicador de urgencia si aplica.
 - **Descripción y comentarios** usan `ExpandableText`: respeta saltos de línea (`white-space: pre-wrap`); si el texto supera 3 líneas o 200 caracteres, se trunca con `webkit-line-clamp: 3` y aparece un botón "Ver más / Ver menos".
-- **Comentarios:** `<textarea>` de agregar al principio (2 filas, redimensionable). Enter inserta salto de línea; el botón "Agregar" (abajo a la derecha) envía. Los comentarios se listan del más reciente al más antiguo. Cada comentario tiene un botón `×` discreto que al hacer click muestra confirmación inline (`¿Eliminar? Sí / No`) → `DELETE /tasks/{id}/comments/{commentId}` → remove optimista del estado local.
+- **Comentarios:** `<textarea>` de agregar al principio (2 filas, redimensionable). Enter inserta salto de línea; el botón "Agregar" (abajo a la derecha) envía. Mientras el request está en vuelo, el textarea y el botón se deshabilitan (`disabled`) con opacidad reducida y el botón muestra "Agregando…". Los comentarios se listan del más reciente al más antiguo. Cada comentario tiene un botón `×` discreto que al hacer click muestra confirmación inline (`¿Eliminar? Sí / No`) → `DELETE /tasks/{id}/comments/{commentId}` → remove optimista del estado local.
 - **Eliminar tarea:** botón rojo "Eliminar" en el header (junto a "Editar"). Al hacer click despliega una zona inline donde hay que escribir `eliminar` para habilitar el botón "Confirmar". Al confirmar → `DELETE /tasks/{id}` (con cascade) → modal se cierra, tarea desaparece del tablero. El delete es optimista: la tarea se elimina del estado local antes de que la API responda.
 - Botón "Editar" en el header abre el modal de edición manteniendo la tarea activa.
 
@@ -374,11 +382,14 @@ Animación shimmer via `@keyframes sk-shimmer` (gradiente horizontal animado). A
 - **PKCE en el frontend**: el `client_secret` de Cognito no se usa (`generateSecret: false`), el flujo es seguro sin backend de auth.
 - **Tokens en localStorage**: decisión consciente para simplicidad — app de uso personal, no multi-tenant.
 - **Modo del tablero en localStorage**: persiste entre sesiones sin necesidad de backend; clave `board-view-mode`.
-- **Constantes centralizadas en `types.ts`**: todos los valores del dominio (colores, labels, listas de estados) viven en un solo lugar para evitar strings hardcodeados dispersos en componentes.
-- **Helpers compartidos en `lib/utils.ts`**: `fmt` y `dateUrgency` se usan en `Card`, `TaskDetail` y `ListView`; extraídos para evitar duplicación.
+- **Constantes centralizadas en `types.ts`**: todos los valores del dominio (colores, labels, iconos, listas de estados) viven en un solo lugar. Incluye `TASK_KIND_ICONS`, `URGENCY_LEVELS` y el tipo `Theme`.
+- **Helpers compartidos en `lib/utils.ts`**: `fmt`, `dateUrgency`, `getTaskDate`, `isValidLabelName` y `LABEL_MAX_LENGTH` evitan duplicación entre componentes. `getTaskDate` es la única fuente para resolver qué campo de fecha usar según `task.kind`.
+- **`isActive` en `lib/filters.ts`**: función exportada y consumida por `useFilters.ts`. No hay copia local en el hook.
+- **Claves de localStorage nombradas**: `BOARD_MODE_KEY = 'board-view-mode'` en `App.tsx`; `THEME_KEY = 'theme'` en `App.tsx`; `TOKEN_KEY = 'auth_tokens'` y `PKCE_VERIFIER_KEY = 'pkce_verifier'` en `auth.ts`.
 - **Drag and drop nativo**: sin dependencias externas. La API de HTML5 es suficiente para el caso de uso (escritorio, mover entre columnas). El drop reutiliza el mismo `updateTask` que el selector de estado del modal.
-- **Labels cargadas lazily por tarea**: `GET /tasks/{id}/labels` solo se llama al abrir el modal, no en el page load. El page load solo carga los nombres únicos (`GET /labels`) para el autocompletado, minimizando requests.
-- **Caché local de nombres de labels**: `useLabels` mantiene la lista en memoria durante la sesión. Las labels creadas en la sesión se agregan al caché con `registerLabel` sin request adicional.
+- **Labels incluidas en `GET /tasks`**: el backend consulta `LABEL#` en el mismo request que tareas y comentarios. `TaskDetail` inicializa su estado local desde `task.labels` directamente, sin hacer `GET /tasks/{id}/labels` al abrir el modal.
+- **Caché local de nombres de labels**: `useLabels` carga `GET /labels` una vez al inicio y mantiene la lista en memoria. Las labels creadas en la sesión se agregan con `registerLabel` sin request adicional.
 - **Cascade delete en tarea**: `DELETE /tasks/{id}` consulta todos los items `COMMENT#{taskId}#` y `LABEL#{taskId}#` y los borra en paralelo con la tarea usando `batchDeleteItems`. Sin huérfanos en DynamoDB.
 - **Delete optimista de tarea**: `useTasks.deleteTask` actualiza el estado local antes de esperar la respuesta del API, para que el modal cierre y el tablero actualice de inmediato.
+- **Orden por fecha en el tablero**: `Board.tsx` ordena el array de tareas con `sortByDate` (usa `getTaskDate`) antes de distribuir por estado. Las tareas sin fecha van al final. El orden aplica igual en Kanban y Lista.
 - **`ExpandableText`**: componente interno de `TaskDetail` que trunca a 3 líneas con `webkit-line-clamp` y ofrece "Ver más / Ver menos". Respeta `\n` via `white-space: pre-wrap`. Aplica a descripción y a cada comentario.

@@ -7,7 +7,7 @@ import { Board } from './components/Board';
 import { FilterBarControls, FilterCriteriaPanel } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
-import type { Task, TaskStatus, BoardMode, CreateTaskInput } from './types';
+import type { Task, TaskStatus, BoardMode, CreateTaskInput, Theme } from './types';
 
 type Modal =
   | { kind: 'none' }
@@ -16,6 +16,7 @@ type Modal =
   | { kind: 'detail'; task: Task };
 
 const BOARD_MODE_KEY = 'board-view-mode';
+const THEME_KEY = 'theme';
 
 export default function App() {
   const { authenticated, loading: authLoading, login, logout } = useAuth();
@@ -27,8 +28,8 @@ export default function App() {
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
   const [filterExpanded, setFilterExpanded] = useState(false);
 
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const stored = localStorage.getItem('theme');
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = localStorage.getItem(THEME_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
@@ -44,7 +45,7 @@ export default function App() {
   function toggleTheme() {
     setTheme((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('theme', next);
+      localStorage.setItem(THEME_KEY, next);
       return next;
     });
   }
