@@ -62,7 +62,7 @@ export function TaskModal({ task, initialStatus, onSave, onDelete, onClose }: Pr
       </Field>
 
       <Field label="Descripción">
-        <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descripción de la tarea" />
+        <Textarea autoResize value={body} onChange={(e) => setBody(e.target.value)} placeholder="Descripción de la tarea" />
       </Field>
 
       <div className="row2">

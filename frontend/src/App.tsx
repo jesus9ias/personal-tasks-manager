@@ -7,7 +7,7 @@ import { Board } from './components/Board';
 import { FilterBarControls, FilterCriteriaPanel } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
-import { Button } from './components/ui';
+import { Button, SegmentedControl } from './components/ui';
 import type { Task, TaskStatus, BoardMode, CreateTaskInput, Theme } from './types';
 
 type Modal =
@@ -120,20 +120,14 @@ export default function App() {
             onToggleExpanded={() => setFilterExpanded((v) => !v)}
             onClearAll={clearAll}
           />
-          <div className="mode-toggle">
-            <button
-              className={`mode-btn${mode === 'kanban' ? ' active' : ''}`}
-              onClick={() => switchMode('kanban')}
-            >
-              <span className="btn-label">Tablero</span><span className="btn-icon">⊞</span>
-            </button>
-            <button
-              className={`mode-btn${mode === 'list' ? ' active' : ''}`}
-              onClick={() => switchMode('list')}
-            >
-              <span className="btn-label">Lista</span><span className="btn-icon">☰</span>
-            </button>
-          </div>
+          <SegmentedControl
+            value={mode}
+            onValueChange={(v) => switchMode(v as BoardMode)}
+            options={[
+              { value: 'kanban', label: 'Tablero', icon: '⊞' },
+              { value: 'list',   label: 'Lista',   icon: '☰' },
+            ]}
+          />
           <Button variant="primary" onClick={() => setModal({ kind: 'new' })}>
             <span className="btn-label">Nueva tarea</span><span className="btn-icon">+</span>
           </Button>

@@ -116,7 +116,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg-app);color:var(--text)
 
 /* ── Overlay / Modal ────────────────────────────────────────────────────────── */
 .overlay{position:fixed;inset:0;background:var(--overlay);z-index:100}
-.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:101;background:var(--bg-popup);border-radius:var(--r-xl);border:0.5px solid var(--bd-md);padding:1.25rem;width:calc(100% - 2rem);max-width:460px;max-height:90vh;overflow-y:auto}
+.modal{position:fixed;top:50vh;left:50vw;transform:translate(-50%,-50%);z-index:101;background:var(--bg-popup);border-radius:var(--r-xl);border:0.5px solid var(--bd-md);padding:1.25rem;width:min(460px,calc(100vw - 2rem));max-height:90vh;overflow-y:auto}
 .modal h3{font-size:16px;font-weight:500;color:var(--text);margin-bottom:1rem}
 .modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:1rem}
 .modal-header h3{margin:0;line-height:1.4}
@@ -180,15 +180,17 @@ body{font-family:system-ui,sans-serif;background:var(--bg-app);color:var(--text)
 .mode-toggle{display:flex;border:0.5px solid var(--bd-strong);border-radius:var(--r-md);overflow:hidden}
 .mode-btn{background:transparent;border:none;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-3);transition:background 0.15s,color 0.15s}
 .mode-btn:hover{background:var(--bg-hover)}
-.mode-btn.active{background:var(--bg-surface);color:var(--text)}
+.mode-btn[data-state="on"]{background:var(--bg-surface);color:var(--text)}
 
 /* ── List view ──────────────────────────────────────────────────────────────── */
 .list-view{display:flex;flex-direction:column;gap:6px;max-width:860px;margin:0 auto;width:100%}
 .list-group{background:var(--bg-raised);border:0.5px solid var(--bd);border-radius:var(--r-lg);overflow:hidden}
 .list-group-header{display:flex;align-items:center;gap:8px;padding:8px 12px;user-select:none}
 .list-group-title{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.04em;flex:1}
-.list-collapse-btn{background:transparent;border:none;cursor:pointer;font-size:9px;color:var(--text-4);padding:0;width:14px;line-height:1;display:flex;align-items:center;justify-content:center}
+.list-collapse-btn{background:transparent;border:none;cursor:pointer;color:var(--text-4);padding:0;width:14px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .list-collapse-btn:hover{color:var(--text)}
+.list-collapse-icon::before{content:'▼';font-size:9px;display:inline-block;transition:transform 0.2s ease}
+.list-collapse-btn[data-state="closed"] .list-collapse-icon::before{transform:rotate(-90deg)}
 .list-group-body{border-top:0.5px solid var(--bd-soft)}
 .list-row{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid var(--bd-soft);background:var(--bg-surface);transition:background 0.12s}
 .list-row:last-child{border-bottom:none}
@@ -197,6 +199,20 @@ body{font-family:system-ui,sans-serif;background:var(--bg-app);color:var(--text)
 .list-cell-urgency{flex:0 0 18px;text-align:center;font-size:13px}
 .list-cell-kind{flex:0 0 18px;text-align:center;font-size:13px;cursor:default}
 .list-cell-date{flex:0 0 100px;font-size:11px;text-align:right;color:var(--text-3)}
+
+/* ── Operator toggle group ──────────────────────────────────────────────────── */
+.op-toggle{display:flex;border:0.5px solid var(--bd);border-radius:var(--r-sm);overflow:hidden;flex-shrink:0}
+.op-btn{background:transparent;border:none;border-right:0.5px solid var(--bd);padding:4px 9px;font-size:11px;font-weight:500;cursor:pointer;color:var(--text-2);transition:background 0.12s,color 0.12s;white-space:nowrap;font-family:system-ui,sans-serif;line-height:1.4}
+.op-btn:last-child{border-right:none}
+.op-btn:hover{background:var(--bg-hover)}
+.op-btn[data-state="on"]{background:var(--primary-bg);color:var(--primary)}
+
+/* ── Accordion content animation ───────────────────────────────────────────── */
+@keyframes accordion-slide-down{from{height:0}to{height:var(--radix-accordion-content-height)}}
+@keyframes accordion-slide-up{from{height:var(--radix-accordion-content-height)}to{height:0}}
+.accordion-content{overflow:hidden}
+.accordion-content[data-state="open"]{animation:accordion-slide-down 200ms ease-out}
+.accordion-content[data-state="closed"]{animation:accordion-slide-up 200ms ease-out}
 
 /* ── Skeleton ───────────────────────────────────────────────────────────────── */
 @keyframes sk-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}

@@ -1,6 +1,9 @@
 import type { FilterCriterion, FilterField, FilterOperator, TaskStatus, UrgencyLevel } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KINDS, TASK_KIND_LABELS, URGENCY_LEVELS } from '../types';
 import { useState } from 'react';
+import ReactSelect from 'react-select';
+import type { StylesConfig } from 'react-select';
+import * as ToggleGroup from '@radix-ui/react-toggle-group';
 
 const FIELD_LABELS: Record<FilterField, string> = {
   name: 'Nombre',
@@ -69,6 +72,98 @@ const OPERATORS_BY_FIELD: Record<FilterField, OpDef[]> = {
 const MULTI_OPS = new Set<FilterOperator>([
   'is_any_of', 'is_none_of', 'contains_any', 'contains_all', 'contains_none',
 ]);
+
+const OP_SHORT: Record<FilterOperator, string> = {
+  contains:      'contiene',
+  not_contains:  'no contiene',
+  exact:         'exacto',
+  is:            'es',
+  is_not:        'no es',
+  is_any_of:     'alguno de',
+  is_none_of:    'ninguno de',
+  after:         'después de',
+  before:        'antes de',
+  on:            'exacto',
+  has:           'tiene',
+  has_not:       'no tiene',
+  contains_any:  'alguna de',
+  contains_all:  'todas',
+  contains_none: 'ninguna de',
+};
+
+// ── react-select styles — usa nuestros tokens CSS para que dark mode funcione ─
+
+type FieldOption = { value: FilterField; label: string };
+
+const FIELD_OPTIONS: FieldOption[] = FIELDS.map((f) => ({ value: f, label: FIELD_LABELS[f] }));
+
+// Partes compartidas entre ambos selects (menu, opciones, indicadores)
+const sharedSelectStyles: StylesConfig<FieldOption, false> = {
+  indicatorsContainer: (base) => ({ ...base, height: '29px' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  valueContainer: (base) => ({ ...base, padding: '0 7px' }),
+  input: (base) => ({ ...base, color: 'var(--text)', fontSize: '12px', margin: 0, padding: 0 }),
+  menu: (base) => ({
+    ...base,
+    background: 'var(--bg-popup)',
+    border: '0.5px solid var(--bd-md)',
+    borderRadius: 'var(--r-md)',
+    boxShadow: '0 4px 16px var(--shadow-lg)',
+    overflow: 'hidden',
+    fontSize: '12px',
+    zIndex: 50,
+  }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    background: state.isFocused ? 'var(--bg-hover)' : 'transparent',
+    color: state.isSelected ? 'var(--primary)' : 'var(--text)',
+    fontWeight: state.isSelected ? 500 : 400,
+    borderRadius: 'var(--r-sm)',
+    cursor: 'pointer',
+    padding: '6px 10px',
+    fontSize: '12px',
+    '&:active': { background: 'var(--bg-hover)' },
+  }),
+};
+
+// Selector de campo por criterio (fondo neutro, borde sutil)
+const fieldSelectStyles: StylesConfig<FieldOption, false> = {
+  ...sharedSelectStyles,
+  control: (base, state) => ({
+    ...base,
+    minHeight: 'unset',
+    height: '29px',
+    background: 'var(--bg-input)',
+    border: `0.5px solid ${state.isFocused ? 'var(--bd-md)' : 'var(--bd)'}`,
+    borderRadius: 'var(--r-sm)',
+    boxShadow: 'none',
+    cursor: 'pointer',
+    minWidth: '135px',
+    '&:hover': { borderColor: 'var(--bd-md)' },
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--text)', fontSize: '12px', margin: 0 }),
+  dropdownIndicator: (base) => ({ ...base, padding: '0 6px', color: 'var(--text-3)' }),
+};
+
+// Botón de agregar filtro (fondo primario, texto azul)
+const addFilterSelectStyles: StylesConfig<FieldOption, false> = {
+  ...sharedSelectStyles,
+  control: (base) => ({
+    ...base,
+    minHeight: 'unset',
+    height: '29px',
+    background: 'var(--primary-bg)',
+    border: '0.5px solid var(--primary-bd)',
+    borderRadius: 'var(--r-md)',
+    boxShadow: 'none',
+    cursor: 'pointer',
+    '&:hover': { opacity: 0.85 },
+  }),
+  placeholder: (base) => ({ ...base, color: 'var(--primary)', fontSize: '12px', fontWeight: 500, margin: 0 }),
+  singleValue: (base) => ({ ...base, color: 'var(--primary)', fontSize: '12px', fontWeight: 500, margin: 0 }),
+  dropdownIndicator: (base) => ({ ...base, padding: '0 6px', color: 'var(--primary)' }),
+};
 
 // ── Label chip input ─────────────────────────────────────────────────────────
 
@@ -283,24 +378,32 @@ function CriterionRow({
 
   return (
     <div className="criterion-row">
-      <select
-        className="criterion-field-select"
-        value={field}
-        onChange={(e) => handleFieldChange(e.target.value as FilterField)}
-      >
-        {FIELDS.map((f) => (
-          <option key={f} value={f}>{FIELD_LABELS[f]}</option>
-        ))}
-      </select>
-      <select
-        className="criterion-op-select"
+      <ReactSelect<FieldOption, false>
+        value={{ value: field, label: FIELD_LABELS[field] }}
+        onChange={(opt) => opt && handleFieldChange(opt.value)}
+        options={FIELD_OPTIONS}
+        styles={fieldSelectStyles}
+        isSearchable={false}
+        menuPortalTarget={document.body}
+        menuPosition="fixed"
+      />
+      <ToggleGroup.Root
+        type="single"
         value={operator}
-        onChange={(e) => handleOpChange(e.target.value as FilterOperator)}
+        onValueChange={(v) => v && handleOpChange(v as FilterOperator)}
+        className="op-toggle"
       >
         {ops.map((op) => (
-          <option key={op.value} value={op.value}>{op.label}</option>
+          <ToggleGroup.Item
+            key={op.value}
+            value={op.value}
+            className="op-btn"
+            title={op.label}
+          >
+            {OP_SHORT[op.value]}
+          </ToggleGroup.Item>
         ))}
-      </select>
+      </ToggleGroup.Root>
       <div className="criterion-value">{renderValue()}</div>
       <button className="criterion-remove-btn" onClick={onRemove} title="Quitar filtro">×</button>
     </div>
@@ -390,21 +493,16 @@ export function FilterCriteriaPanel({
         />
       ))}
       <div className="filter-footer">
-        <select
-          className="filter-add-select"
-          value=""
-          onChange={(e) => {
-            if (e.target.value) {
-              onAddCriterion(e.target.value as FilterField);
-              (e.target as HTMLSelectElement).value = '';
-            }
-          }}
-        >
-          <option value="" disabled>+ Agregar filtro</option>
-          {FIELDS.map((f) => (
-            <option key={f} value={f}>{FIELD_LABELS[f]}</option>
-          ))}
-        </select>
+        <ReactSelect<FieldOption, false>
+          value={null}
+          onChange={(opt) => { if (opt) onAddCriterion(opt.value); }}
+          options={FIELD_OPTIONS}
+          styles={addFilterSelectStyles}
+          isSearchable={false}
+          placeholder="＋ Agregar filtro"
+          menuPortalTarget={document.body}
+          menuPosition="fixed"
+        />
         <span className="filter-query-hint">Modo query <em>(próximamente)</em></span>
       </div>
     </div>

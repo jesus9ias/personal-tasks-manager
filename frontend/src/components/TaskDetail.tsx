@@ -263,6 +263,7 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
         <div className="detail-label">Comentarios</div>
         <div className="add-comment">
           <Textarea
+            autoResize
             ref={commentRef}
             placeholder="Agregar comentario..."
             rows={2}
