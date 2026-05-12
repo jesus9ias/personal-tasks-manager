@@ -25,21 +25,39 @@ frontend/src/
 ├── lib/
 │   ├── auth.ts          OAuth2 PKCE flow + gestión de tokens
 │   ├── api.ts           REST client con auto-refresh de JWT
-│   └── utils.ts         Helpers compartidos: fmt(), dateUrgency(), getTaskDate(), isValidLabelName(), LABEL_MAX_LENGTH
+│   ├── filters.ts       applyFilters() + isActive() para el modo visual
+│   ├── utils.ts         Helpers compartidos: fmt(), dateUrgency(), getTaskDate(), isValidLabelName(), LABEL_MAX_LENGTH
+│   └── pql/             Motor de query PQL (agnóstico de React)
+│       ├── types.ts     TokenKind enum, Token, ASTNode, PQLField, PQLOperator, PQLValue
+│       ├── lexer.ts     tokenize() — string → Token[]; PQLSyntaxError
+│       ├── parser.ts    parse() — Token[] → ASTNode (recursive descent con validación semántica)
+│       ├── evaluator.ts evaluate() — ASTNode × Task[] → Task[]
+│       └── index.ts     API pública: evaluatePQL(), parsePQL()
 ├── hooks/
 │   ├── useAuth.ts       Estado de autenticación
+│   ├── useFilters.ts    Estado de filtros (modo visual + modo query PQL)
 │   ├── useTasks.ts      CRUD de tareas + comentarios
 │   └── useLabels.ts     Caché de labels globales + carga en page load
 ├── components/
+│   ├── ui/              Primitivos reutilizables (ver sección "Librería de componentes UI")
+│   │   ├── Button.tsx        Botón con variantes default / primary / danger
+│   │   ├── Field.tsx         Wrapper de label + control de formulario
+│   │   ├── Input.tsx         Input con prop error
+│   │   ├── Modal.tsx         Diálogo accesible (Radix Dialog)
+│   │   ├── SegmentedControl.tsx  Toggle de opciones exclusivas (Radix ToggleGroup)
+│   │   ├── Select.tsx        Selector con opciones (Radix Select)
+│   │   ├── Textarea.tsx      Textarea con auto-resize (forwardRef)
+│   │   └── index.ts          Barrel export
 │   ├── Board.tsx        Toolbar + toggle de modo + renderizado condicional
 │   ├── Column.tsx       Columna del modo Kanban (con drag-and-drop drop target)
 │   ├── Card.tsx         Tarjeta individual de tarea (draggable)
-│   ├── ListView.tsx     Vista de lista con grupos colapsables por estado
+│   ├── FilterBar.tsx    Barra de filtros: modo visual (criterios) + modo PQL (textarea + ayuda)
+│   ├── ListView.tsx     Vista de lista con grupos colapsables por estado (Radix Accordion)
 │   ├── TaskDetail.tsx   Modal de detalle/visualización de tarea + gestión de labels
 │   └── TaskModal.tsx    Modal de creación y edición de tarea
 ├── types.ts             Tipos y constantes compartidas del dominio
 ├── App.tsx              Orquestador principal + estado de modales
-└── styles.css           Estilos globales (incluye dark mode)
+└── styles.css           Estilos globales con tokens CSS + dark mode
 ```
 
 ---
@@ -199,9 +217,167 @@ El modo activo se persiste en `localStorage` bajo la clave `board-view-mode`. El
 
 ---
 
+## Sistema de filtros
+
+El sistema de filtros tiene dos modos excluyentes gestionados por `useFilters.ts`. El modo activo **no** se persiste en localStorage; se resetea a `'visual'` al recargar.
+
+### Modo visual (`'visual'`)
+
+- Barra de búsqueda por nombre (substring, case-insensitive) siempre visible en el subheader.
+- Panel expandible con criterios estructurados. Cada criterio tiene: selector de campo, toggle de operador (Radix ToggleGroup), y control de valor específico por campo.
+- Campos disponibles: `name`, `body`, `status`, `kind`, `createdAt`, `dueOrNextDate`, `urgency`, `labels`, `comments`.
+- La evaluación ocurre en `lib/filters.ts:applyFilters()` + `isActive()`.
+
+### Modo query PQL (`'query'`)
+
+- El buscador por nombre se oculta (la query PQL lo reemplaza).
+- El botón "Filtros" cambia su etiqueta a "PQL".
+- Panel expandible con un `<textarea>` monoespaciado. Evalúa con debounce de 350ms tras el último cambio.
+- Si hay error de sintaxis: alerta roja bajo el textarea, el tablero mantiene el **último resultado válido**.
+- Si la query está vacía: sin filtro activo, se muestran todas las tareas.
+- La tabla de referencia rápida de campos y operadores está disponible bajo un `<details>` colapsable.
+
+### Estado en `useFilters`
+
+```typescript
+// Públicos en el retorno del hook
+pqlQuery          // string raw de la query
+pqlError          // string | undefined — error de sintaxis/semántica
+setPqlQuery       // actualiza el string raw
+setMode           // cambia el FilterMode y limpia pqlError
+onPqlEvaluated    // (tasks: Task[] | null, error?: string) => void
+                  // null = mantener lastValidPqlTasks; llamado desde PQLFilterContent tras debounce
+```
+
+`activeCount` en modo query devuelve `1` cuando hay query activa (para el badge del botón).
+
+### Leyenda de coincidencias
+
+`<MatchCountLegend>` en `FilterBarControls` muestra:
+- **"X coincidencias"** cuando hay filtro activo y hay resultados.
+- **"Sin resultados"** en rojo cuando el filtro activo produce 0 tareas.
+- Oculta cuando no hay filtro activo o cuando matchCount === totalCount.
+
+---
+
+## Motor PQL (`lib/pql/`)
+
+Módulo agnóstico de React. Sin dependencias externas, sin `eval()`. Solo importa `../../types` y `../utils`.
+
+### Pipeline
+
+```
+query string → tokenize() → Token[] → parse() → ASTNode → evaluate() → Task[]
+```
+
+### Campos soportados
+
+| Campo | Tipo | Fuente |
+|---|---|---|
+| `name`, `body` | texto | `task.name`, `task.body` |
+| `status` | multi-select | `task.status` |
+| `kind` | single-select | `task.kind` |
+| `createdAt`, `dueDate`, `nextDate` | fecha ISO | campos de tarea |
+| `labels` | labels | `task.labels[].name` |
+| `comments` | presencia | `task.comments` |
+| `urgency` | calculado | `dateUrgency(task.dueDate ?? task.nextDate, task.status)` |
+| `commentsCount()`, `labelsCount()` | numérico | `.length` de los arrays |
+
+Los campos de conteo requieren sintaxis de función: `commentsCount()`, `labelsCount()`.
+
+### Operadores por campo
+
+| Campo(s) | Operadores |
+|---|---|
+| `name`, `body` | `IS`, `NOT IS`, `=`, `!=`, `CONTAINS`, `NOT CONTAINS` |
+| `status` | `IS`, `NOT IS`, `=`, `!=`, `IN`, `NOT IN` |
+| `kind` | `IS`, `NOT IS`, `=`, `!=` |
+| `createdAt`, `dueDate`, `nextDate` | `IS`, `NOT IS`, `=`, `!=`, `BEFORE`, `AFTER` |
+| `labels` | `CONTAINS`, `NOT CONTAINS`, `CONTAINS_ALL`, `HAS`, `NOT HAS` |
+| `comments` | `HAS`, `NOT HAS` |
+| `urgency` | `IN`, `NOT IN`, `HAS`, `NOT HAS` |
+| `commentsCount()`, `labelsCount()` | `>`, `<`, `>=`, `<=`, `=`, `!=` |
+
+### Valores especiales
+
+- `EMPTY` — campo vacío o ausente (ej. `dueDate IS EMPTY`)
+- `currentDate()` — fecha actual en el momento de evaluación (YYYY-MM-DD)
+- Listas: `('valor1', 'valor2')` — solo strings
+- Fechas en queries: formato `DD/MM/YYYY`; el evaluador convierte a YYYY-MM-DD
+
+### Comportamiento semántico destacado
+
+- `labels CONTAINS "urgente"` = la tarea tiene esa label (equivale a CONTAINS_ALL con un elemento).
+- `labels HAS` / `labels NOT HAS` — sin valor explícito; el parser asigna `{ type: 'empty' }`.
+- `comments HAS` / `urgency HAS` — igual, sin valor.
+- Comparaciones de texto siempre en lowercase. Fechas con `T00:00:00` para evitar problemas de zona horaria.
+- `NOT` solo es válido seguido de `IS`, `CONTAINS`, `IN` o `HAS`; de lo contrario lanza `PQLSyntaxError`.
+
+### API pública (`lib/pql/index.ts`)
+
+```typescript
+evaluatePQL(query: string, tasks: Task[]): PQLResult
+// { tasks } si vacía; { tasks: filtradas } si válida; { tasks, error } si error
+
+parsePQL(query: string): { ast: ASTNode } | { error: string }
+// Solo parsea, sin evaluar. Útil para validación en tiempo real.
+```
+
+---
+
+## Librería de componentes UI (`components/ui/`)
+
+**Regla:** todo cambio o adición de UI debe usar los componentes de `components/ui/` como base. Si no existe un primitivo adecuado en Radix UI, usar la alternativa más cercana. Solo se puede omitir esta regla cuando se indique explícitamente.
+
+### Componentes disponibles
+
+| Componente | Base | Descripción |
+|---|---|---|
+| `Button` | HTML `<button>` | Variantes `default` / `primary` / `danger`. Acepta todas las props nativas. |
+| `Field` | `<div>` + `<label>` | Wrapper de campo de formulario. Props: `label`, `children`, `className`. |
+| `Input` | HTML `<input>` | Prop extra `error: boolean` agrega clase `.error`. Acepta todas las props nativas. |
+| `Modal` | `@radix-ui/react-dialog` | Diálogo accesible. Cierra con Escape y click en overlay. Props: `onClose`, `children`, `title?` (para accesibilidad, default `'Diálogo'`). |
+| `SegmentedControl` | `@radix-ui/react-toggle-group` | Toggle de opciones mutuamente exclusivas. Props: `value`, `onValueChange`, `options: {value, label?, icon?}[]`. |
+| `Select` | `@radix-ui/react-select` | Selector nativo accesible. Props: `value`, `onValueChange`, `options: {value, label}[]`, `className?`. |
+| `Textarea` | HTML `<textarea>` + `forwardRef` | Soporta `autoResize` (crece con el contenido). Compatible con `ref` externo para leer valor. |
+
+### Dependencias Radix UI instaladas
+
+```
+@radix-ui/react-accordion      — ListView (grupos colapsables)
+@radix-ui/react-dialog         — Modal
+@radix-ui/react-select         — Select
+@radix-ui/react-toggle-group   — SegmentedControl + operadores de filtro
+@radix-ui/react-visually-hidden — Dialog.Title accesible oculto
+```
+
+### Librería adicional
+
+- **`react-select`** — dropdowns con búsqueda en FilterBar (campo a filtrar y "Agregar filtro"). Se estiliza vía `StylesConfig` usando `var(--css-variable)` para compatibilidad automática con dark mode. Usar `menuPortalTarget={document.body}` + `menuPosition="fixed"` cuando el dropdown esté dentro de un contenedor con `overflow` limitado.
+
+### Tokens CSS (`styles.css :root`)
+
+Todos los valores de color, radio y sombra están en variables CSS. Dark mode se implementa sobrescribiendo solo las variables en `[data-theme="dark"]`.
+
+| Token | Descripción |
+|---|---|
+| `--bg-app` | Fondo de la aplicación |
+| `--bg-surface` | Fondo de tarjetas y paneles |
+| `--bg-raised` | Fondo elevado (hover, chips) |
+| `--bg-popup` | Fondo de modales y dropdowns |
+| `--bg-input` | Fondo de inputs |
+| `--bg-hover` | Overlay hover sutil |
+| `--text` / `--text-2` / `--text-3` / `--text-4` | Jerarquía de texto |
+| `--bd` / `--bd-md` | Bordes |
+| `--primary` / `--primary-bg` / `--primary-bd` | Color primario y sus variantes |
+| `--danger` | Color rojo de acciones destructivas |
+| `--r-sm` / `--r-md` / `--r-lg` / `--r-xl` / `--r-pill` | Radios de borde |
+
+---
+
 ## Modales de tareas
 
-Todos los modales se cierran con **Escape** o haciendo click fuera del área del modal (en el overlay). La lógica de cierre vive en `App.tsx` mediante un `useEffect` que escucha `keydown` solo cuando hay un modal abierto.
+Todos los modales se cierran con **Escape** o haciendo click fuera del área del modal (en el overlay). El cierre lo gestiona Radix Dialog internamente (`onOpenChange`) — no hay `useEffect` manual en `App.tsx` para esto.
 
 ### Modal de nueva tarea
 - Se abre desde el botón `+ Nueva tarea` del toolbar (sin estado preseleccionado) o desde el botón `+` de una columna/grupo (con `initialStatus` preseleccionado).
@@ -385,6 +561,19 @@ Animación shimmer via `@keyframes sk-shimmer` (gradiente horizontal animado). A
 - **Constantes centralizadas en `types.ts`**: todos los valores del dominio (colores, labels, iconos, listas de estados) viven en un solo lugar. Incluye `TASK_KIND_ICONS`, `URGENCY_LEVELS` y el tipo `Theme`.
 - **Helpers compartidos en `lib/utils.ts`**: `fmt`, `dateUrgency`, `getTaskDate`, `isValidLabelName` y `LABEL_MAX_LENGTH` evitan duplicación entre componentes. `getTaskDate` es la única fuente para resolver qué campo de fecha usar según `task.kind`.
 - **`isActive` en `lib/filters.ts`**: función exportada y consumida por `useFilters.ts`. No hay copia local en el hook.
+- **PQL evalúa en el componente, no en el hook**: el debounce (350ms) y la llamada a `evaluatePQL` viven en `PQLFilterContent`. El resultado se comunica al hook mediante `onPqlEvaluated(tasks, error)`. El hook solo almacena el último resultado válido (`lastValidPqlTasks`) y lo sirve en `filteredTasks()`.
+- **Error PQL mantiene el último resultado válido**: `onPqlEvaluated(null, error)` deja `lastValidPqlTasks` intacto. El tablero no parpadea mientras el usuario escribe una query incompleta.
+- **Motor PQL agnóstico de React**: `lib/pql/` no importa nada de React. El `ASTNode` es serializable a JSON — diseñado para futura traducción a `FilterExpression` de DynamoDB en el backend.
+- **`enum` en lugar de `const enum` en PQL**: Vite usa esbuild que no soporta `const enum` entre módulos con `isolatedModules`. Se usa `enum` estándar; el comportamiento es idéntico.
+- **`Dialog.Title` oculto con `VisuallyHidden`**: `Modal.tsx` envuelve un `<Dialog.Title>` con `@radix-ui/react-visually-hidden` para cumplir el requisito de accesibilidad de Radix sin afectar el layout visual. El prop `title` es opcional (default `'Diálogo'`).
+- **Cierre de modales vía Radix Dialog**: `Modal.tsx` usa `Dialog.Root` con `onOpenChange`. Escape y click en overlay los maneja Radix internamente. No hay `useEffect` manual en `App.tsx` para esto.
+- **`SegmentedControl` con Radix ToggleGroup**: el toggle Tablero/Lista usa `ToggleGroup.Root type="single"` con `onValueChange` que ignora string vacío (Radix lo emite cuando se desmarca el item activo — se previene con `v && onValueChange(v)`).
+- **Accordion de Radix para ListView**: `ListView` usa `Accordion.Root type="multiple" defaultValue={[...STATES]}` para que todos los grupos arranquen expandidos. La animación height usa `--radix-accordion-content-height` inyectada por Radix.
+- **Operadores de filtro como ToggleGroup**: en `FilterBar`, los operadores de cada criterio usan `ToggleGroup.Root` con clase `.op-toggle`. Las etiquetas son abreviadas (ej. `contiene`, `no contiene`) y el texto completo va en `title` para tooltip.
+- **react-select para dropdowns de filtro**: el selector de campo de cada criterio y el dropdown "Agregar filtro" usan `react-select`. Los estilos usan `var(--css-variable)` en `StylesConfig` para dark mode automático. `menuPortalTarget={document.body}` + `menuPosition="fixed"` evita recorte por `overflow`.
+- **Tokens CSS centralizados**: `:root` en `styles.css` define todas las variables de color, radio y fondo. Dark mode sobrescribe solo las variables en `[data-theme="dark"]`, sin duplicar reglas de layout.
+- **Modal centrado con `vw`/`vh`**: `.modal` usa `top:50vh;left:50vw` en lugar de `top:50%;left:50%` para evitar que el desbordamiento horizontal del tablero Kanban expanda el initial containing block y desplace el modal en mobile.
+- **`Textarea` con `forwardRef` y `autoResize`**: el prop `autoResize` ajusta `height` vía `scrollHeight` en el callback de ref y en `onInput`. El `setRef` callback combina el ref externo con la inicialización del auto-resize para textareas prellenadas.
 - **Claves de localStorage nombradas**: `BOARD_MODE_KEY = 'board-view-mode'` en `App.tsx`; `THEME_KEY = 'theme'` en `App.tsx`; `TOKEN_KEY = 'auth_tokens'` y `PKCE_VERIFIER_KEY = 'pkce_verifier'` en `auth.ts`.
 - **Drag and drop nativo**: sin dependencias externas. La API de HTML5 es suficiente para el caso de uso (escritorio, mover entre columnas). El drop reutiliza el mismo `updateTask` que el selector de estado del modal.
 - **Labels incluidas en `GET /tasks`**: el backend consulta `LABEL#` en el mismo request que tareas y comentarios. `TaskDetail` inicializa su estado local desde `task.labels` directamente, sin hacer `GET /tasks/{id}/labels` al abrir el modal.

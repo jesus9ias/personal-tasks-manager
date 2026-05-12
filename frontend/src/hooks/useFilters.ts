@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Task, FilterCriterion, FilterField, FilterOperator, FilterState } from '../types';
+import type { Task, FilterCriterion, FilterField, FilterMode, FilterOperator, FilterState } from '../types';
 import { applyFilters, isActive } from '../lib/filters';
 
 const DEFAULT_OPERATOR: Record<FilterField, FilterOperator> = {
@@ -25,6 +25,10 @@ export function useFilters() {
     criteria: [],
     mode: 'visual',
   });
+
+  const [pqlQuery, setPqlQueryRaw] = useState('');
+  const [pqlError, setPqlError] = useState<string | undefined>(undefined);
+  const [lastValidPqlTasks, setLastValidPqlTasks] = useState<Task[] | null>(null);
 
   const addCriterion = useCallback((field: FilterField) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -55,13 +59,42 @@ export function useFilters() {
     setState((prev) => ({ ...prev, nameSearch: q }));
   }, []);
 
-  const clearAll = useCallback(() => {
-    setState({ nameSearch: '', criteria: [], mode: 'visual' });
+  const setMode = useCallback((newMode: FilterMode) => {
+    setState((prev) => ({ ...prev, mode: newMode }));
+    setPqlError(undefined);
   }, []);
 
-  const filteredTasks = useCallback((tasks: Task[]) => applyFilters(tasks, state), [state]);
+  const setPqlQuery = useCallback((query: string) => {
+    setPqlQueryRaw(query);
+  }, []);
 
-  const activeCount = state.criteria.filter(isActive).length;
+  const clearAll = useCallback(() => {
+    setState({ nameSearch: '', criteria: [], mode: 'visual' });
+    setPqlQueryRaw('');
+    setPqlError(undefined);
+    setLastValidPqlTasks(null);
+  }, []);
+
+  const onPqlEvaluated = useCallback((result: Task[] | null, error?: string) => {
+    setLastValidPqlTasks((prev) => (result !== null ? result : prev));
+    setPqlError(error);
+  }, []);
+
+  const filteredTasks = useCallback(
+    (tasks: Task[]): Task[] => {
+      if (state.mode === 'query') {
+        if (!pqlQuery.trim()) return tasks;
+        return lastValidPqlTasks ?? tasks;
+      }
+      return applyFilters(tasks, state);
+    },
+    [state, pqlQuery, lastValidPqlTasks],
+  );
+
+  const activeCount =
+    state.mode === 'query'
+      ? pqlQuery.trim() ? 1 : 0
+      : state.criteria.filter(isActive).length;
 
   return {
     state,
@@ -72,5 +105,10 @@ export function useFilters() {
     clearAll,
     filteredTasks,
     activeCount,
+    pqlQuery,
+    pqlError,
+    setPqlQuery,
+    setMode,
+    onPqlEvaluated,
   };
 }

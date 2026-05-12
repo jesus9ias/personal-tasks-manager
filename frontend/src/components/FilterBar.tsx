@@ -1,9 +1,10 @@
-import type { FilterCriterion, FilterField, FilterOperator, TaskStatus, UrgencyLevel } from '../types';
+import type { FilterCriterion, FilterField, FilterMode, FilterOperator, Task, TaskStatus, UrgencyLevel } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KINDS, TASK_KIND_LABELS, URGENCY_LEVELS } from '../types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactSelect from 'react-select';
 import type { StylesConfig } from 'react-select';
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
+import { evaluatePQL } from '../lib/pql';
 
 const FIELD_LABELS: Record<FilterField, string> = {
   name: 'Nombre',
@@ -91,13 +92,12 @@ const OP_SHORT: Record<FilterOperator, string> = {
   contains_none: 'ninguna de',
 };
 
-// ── react-select styles — usa nuestros tokens CSS para que dark mode funcione ─
+// ── react-select styles ──────────────────────────────────────────────────────
 
 type FieldOption = { value: FilterField; label: string };
 
 const FIELD_OPTIONS: FieldOption[] = FIELDS.map((f) => ({ value: f, label: FIELD_LABELS[f] }));
 
-// Partes compartidas entre ambos selects (menu, opciones, indicadores)
 const sharedSelectStyles: StylesConfig<FieldOption, false> = {
   indicatorsContainer: (base) => ({ ...base, height: '29px' }),
   indicatorSeparator: () => ({ display: 'none' }),
@@ -127,7 +127,6 @@ const sharedSelectStyles: StylesConfig<FieldOption, false> = {
   }),
 };
 
-// Selector de campo por criterio (fondo neutro, borde sutil)
 const fieldSelectStyles: StylesConfig<FieldOption, false> = {
   ...sharedSelectStyles,
   control: (base, state) => ({
@@ -146,7 +145,6 @@ const fieldSelectStyles: StylesConfig<FieldOption, false> = {
   dropdownIndicator: (base) => ({ ...base, padding: '0 6px', color: 'var(--text-3)' }),
 };
 
-// Botón de agregar filtro (fondo primario, texto azul)
 const addFilterSelectStyles: StylesConfig<FieldOption, false> = {
   ...sharedSelectStyles,
   control: (base) => ({
@@ -410,79 +408,105 @@ function CriterionRow({
   );
 }
 
-// ── FilterBarControls ────────────────────────────────────────────────────────
+// ── PQL help table ───────────────────────────────────────────────────────────
 
-interface FilterBarControlsProps {
-  nameSearch: string;
-  activeCount: number;
-  expanded: boolean;
-  onNameSearchChange: (v: string) => void;
-  onToggleExpanded: () => void;
-  onClearAll: () => void;
-}
-
-export function FilterBarControls({
-  nameSearch,
-  activeCount,
-  expanded,
-  onNameSearchChange,
-  onToggleExpanded,
-  onClearAll,
-}: FilterBarControlsProps) {
-  const hasAnyFilter = nameSearch.trim() !== '' || activeCount > 0;
-
+function PQLHelpContent() {
   return (
-    <>
-      <div className="filter-name-wrap">
-        <span className="filter-name-icon">🔍</span>
-        <input
-          type="text"
-          className="filter-name-input"
-          placeholder="Buscar por nombre..."
-          value={nameSearch}
-          onChange={(e) => onNameSearchChange(e.target.value)}
-        />
-      </div>
-      <button
-        className={`filter-toggle-btn${expanded ? ' active' : ''}`}
-        onClick={onToggleExpanded}
-      >
-        <span className="btn-label">Filtros</span>
-        <span className="btn-icon">{expanded ? '▲' : '▼'}</span>
-        {activeCount > 0 && <span className="filter-count-badge">{activeCount}</span>}
-      </button>
-      {hasAnyFilter && (
-        <button className="filter-clear-btn" onClick={onClearAll}>
-          × Limpiar
-        </button>
-      )}
-    </>
+    <div className="pql-help-content">
+      <table className="pql-help-table">
+        <thead>
+          <tr><th>Campo</th><th>Operadores</th><th>Valores de ejemplo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>name, body</td><td>IS, NOT IS, CONTAINS, NOT CONTAINS</td><td>&quot;texto&quot;, EMPTY</td></tr>
+          <tr><td>status</td><td>IS, NOT IS, IN, NOT IN</td><td>&apos;Backlog&apos;, (&apos;Backlog&apos;, &apos;Ejecución&apos;)</td></tr>
+          <tr><td>kind</td><td>IS, NOT IS</td><td>&apos;ONE_TIME&apos;, &apos;RECURRING&apos;</td></tr>
+          <tr><td>createdAt, dueDate, nextDate</td><td>IS, NOT IS, BEFORE, AFTER</td><td>&quot;31/03/2026&quot;, currentDate()</td></tr>
+          <tr><td>labels</td><td>CONTAINS, NOT CONTAINS, CONTAINS_ALL, HAS, NOT HAS</td><td>&quot;urgente&quot;, (&quot;a&quot;, &quot;b&quot;)</td></tr>
+          <tr><td>comments</td><td>HAS, NOT HAS</td><td>—</td></tr>
+          <tr><td>urgency</td><td>IN, NOT IN, HAS, NOT HAS</td><td>(&apos;warning&apos;, &apos;alert&apos;, &apos;overdue&apos;)</td></tr>
+          <tr><td>commentsCount()</td><td>{'>'} {'<'} {'>='} {'<='} = !=</td><td>0, 1, 5</td></tr>
+          <tr><td>labelsCount()</td><td>{'>'} {'<'} {'>='} {'<='} = !=</td><td>0, 1, 5</td></tr>
+        </tbody>
+      </table>
+      <p className="pql-help-note">
+        Usa <strong>AND</strong> / <strong>OR</strong> para combinar condiciones. Los paréntesis agrupan y se resuelven de adentro hacia afuera. La sintaxis no distingue mayúsculas de minúsculas.
+      </p>
+    </div>
   );
 }
 
-// ── FilterCriteriaPanel ──────────────────────────────────────────────────────
+// ── PQL filter panel ─────────────────────────────────────────────────────────
 
-interface FilterCriteriaPanelProps {
-  criteria: FilterCriterion[];
-  allLabelNames: string[];
-  expanded: boolean;
-  onAddCriterion: (field: FilterField) => void;
-  onUpdateCriterion: (id: string, updates: Partial<FilterCriterion>) => void;
-  onRemoveCriterion: (id: string) => void;
+function PQLFilterContent({
+  pqlQuery,
+  pqlError,
+  allTasks,
+  onPqlChange,
+  onPqlEvaluated,
+}: {
+  pqlQuery: string;
+  pqlError?: string;
+  allTasks: Task[];
+  onPqlChange: (q: string) => void;
+  onPqlEvaluated: (tasks: Task[] | null, error?: string) => void;
+}) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const result = evaluatePQL(pqlQuery, allTasks);
+      if (result.error) {
+        onPqlEvaluated(null, result.error);
+      } else {
+        onPqlEvaluated(result.tasks, undefined);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [pqlQuery, allTasks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="pql-panel">
+      <textarea
+        className={`pql-input${pqlError ? ' pql-input--error' : ''}`}
+        value={pqlQuery}
+        onChange={(e) => onPqlChange(e.target.value)}
+        placeholder={`name CONTAINS "Pago" AND status NOT IN ('Finalizado', 'Cancelado')`}
+        rows={2}
+        spellCheck={false}
+        autoComplete="off"
+        autoCorrect="off"
+      />
+      {pqlError && (
+        <div className="pql-error" role="alert">
+          ⚠️ {pqlError}
+        </div>
+      )}
+      <div className="pql-help">
+        <details>
+          <summary>Referencia rápida de campos y operadores</summary>
+          <PQLHelpContent />
+        </details>
+      </div>
+    </div>
+  );
 }
 
-export function FilterCriteriaPanel({
+// ── Visual filter content ────────────────────────────────────────────────────
+
+function VisualFilterContent({
   criteria,
   allLabelNames,
-  expanded,
   onAddCriterion,
   onUpdateCriterion,
   onRemoveCriterion,
-}: FilterCriteriaPanelProps) {
-  if (!expanded) return null;
-
+}: {
+  criteria: FilterCriterion[];
+  allLabelNames: string[];
+  onAddCriterion: (field: FilterField) => void;
+  onUpdateCriterion: (id: string, updates: Partial<FilterCriterion>) => void;
+  onRemoveCriterion: (id: string) => void;
+}) {
   return (
-    <div className="filter-criteria-panel">
+    <>
       {criteria.map((c) => (
         <CriterionRow
           key={c.id}
@@ -503,8 +527,149 @@ export function FilterCriteriaPanel({
           menuPortalTarget={document.body}
           menuPosition="fixed"
         />
-        <span className="filter-query-hint">Modo query <em>(próximamente)</em></span>
       </div>
+    </>
+  );
+}
+
+// ── Match count legend ───────────────────────────────────────────────────────
+
+function MatchCountLegend({
+  matchCount,
+  totalCount,
+  hasFilter,
+}: {
+  matchCount: number;
+  totalCount: number;
+  hasFilter: boolean;
+}) {
+  if (!hasFilter) return null;
+  if (matchCount === totalCount) return null;
+  if (matchCount === 0) {
+    return <span className="filter-match-count filter-match-count--empty">Sin resultados</span>;
+  }
+  return (
+    <span className="filter-match-count">
+      {matchCount} {matchCount === 1 ? 'coincidencia' : 'coincidencias'}
+    </span>
+  );
+}
+
+// ── FilterBarControls ────────────────────────────────────────────────────────
+
+interface FilterBarControlsProps {
+  nameSearch: string;
+  activeCount: number;
+  expanded: boolean;
+  mode: FilterMode;
+  matchCount: number;
+  totalCount: number;
+  onNameSearchChange: (v: string) => void;
+  onToggleExpanded: () => void;
+  onClearAll: () => void;
+  onModeChange: (m: FilterMode) => void;
+}
+
+export function FilterBarControls({
+  nameSearch,
+  activeCount,
+  expanded,
+  mode,
+  matchCount,
+  totalCount,
+  onNameSearchChange,
+  onToggleExpanded,
+  onClearAll,
+}: FilterBarControlsProps) {
+  const hasAnyFilter = activeCount > 0 || nameSearch.trim() !== '';
+
+  return (
+    <>
+      {mode === 'visual' && (
+        <div className="filter-name-wrap">
+          <span className="filter-name-icon">🔍</span>
+          <input
+            type="text"
+            className="filter-name-input"
+            placeholder="Buscar por nombre..."
+            value={nameSearch}
+            onChange={(e) => onNameSearchChange(e.target.value)}
+          />
+        </div>
+      )}
+      <button
+        className={`filter-toggle-btn${expanded ? ' active' : ''}`}
+        onClick={onToggleExpanded}
+      >
+        <span className="btn-label">{mode === 'query' ? 'PQL' : 'Filtros'}</span>
+        <span className="btn-icon">{expanded ? '▲' : '▼'}</span>
+        {activeCount > 0 && <span className="filter-count-badge">{activeCount}</span>}
+      </button>
+      {hasAnyFilter && (
+        <button className="filter-clear-btn" onClick={onClearAll}>
+          × Limpiar
+        </button>
+      )}
+      <MatchCountLegend matchCount={matchCount} totalCount={totalCount} hasFilter={hasAnyFilter} />
+    </>
+  );
+}
+
+// ── FilterCriteriaPanel ──────────────────────────────────────────────────────
+
+interface FilterCriteriaPanelProps {
+  criteria: FilterCriterion[];
+  allLabelNames: string[];
+  expanded: boolean;
+  mode: FilterMode;
+  pqlQuery: string;
+  pqlError?: string;
+  allTasks: Task[];
+  onPqlChange: (q: string) => void;
+  onPqlEvaluated: (tasks: Task[] | null, error?: string) => void;
+  onModeChange: (m: FilterMode) => void;
+  onAddCriterion: (field: FilterField) => void;
+  onUpdateCriterion: (id: string, updates: Partial<FilterCriterion>) => void;
+  onRemoveCriterion: (id: string) => void;
+}
+
+export function FilterCriteriaPanel(props: FilterCriteriaPanelProps) {
+  if (!props.expanded) return null;
+
+  return (
+    <div className="filter-criteria-panel">
+      <div className="filter-mode-toggle">
+        <button
+          className={`filter-mode-btn${props.mode === 'visual' ? ' active' : ''}`}
+          onClick={() => props.onModeChange('visual')}
+        >
+          Visual
+        </button>
+        <button
+          className={`filter-mode-btn${props.mode === 'query' ? ' active' : ''}`}
+          onClick={() => props.onModeChange('query')}
+        >
+          PQL
+        </button>
+      </div>
+
+      {props.mode === 'visual' ? (
+        <VisualFilterContent
+          criteria={props.criteria}
+          allLabelNames={props.allLabelNames}
+          onAddCriterion={props.onAddCriterion}
+          onUpdateCriterion={props.onUpdateCriterion}
+          onRemoveCriterion={props.onRemoveCriterion}
+        />
+      ) : (
+        <PQLFilterContent
+          pqlQuery={props.pqlQuery}
+          pqlError={props.pqlError}
+          allTasks={props.allTasks}
+          onPqlChange={props.onPqlChange}
+          onPqlEvaluated={props.onPqlEvaluated}
+        />
+      )}
     </div>
   );
 }

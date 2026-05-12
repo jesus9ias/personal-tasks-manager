@@ -7,6 +7,7 @@ Gestor personal de tareas con tablero Kanban. App full-stack serverless en AWS, 
 | Capa | Tecnología |
 |---|---|
 | Frontend | React 18 + Vite + TypeScript |
+| Componentes UI | Radix UI Primitives + react-select |
 | Backend | AWS Lambda (Node 24, TypeScript) |
 | Base de datos | DynamoDB (single-table) |
 | Auth | AWS Cognito + Google OAuth2 (PKCE) |
@@ -57,21 +58,31 @@ personal-tasks-manager/
 │   │   ├── lib/
 │   │   │   ├── auth.ts        OAuth2 PKCE flow + token management
 │   │   │   ├── api.ts         REST client con auto-refresh de JWT
-│   │   │   └── utils.ts       Helpers: fmt(), dateUrgency()
+│   │   │   ├── filters.ts     Lógica de filtros visuales (applyFilters, isActive)
+│   │   │   ├── utils.ts       Helpers: fmt(), dateUrgency(), getTaskDate()
+│   │   │   └── pql/           Motor de query PQL
+│   │   │       ├── types.ts   Tokens, AST, PQLField, PQLOperator, PQLValue
+│   │   │       ├── lexer.ts   tokenize() + PQLSyntaxError
+│   │   │       ├── parser.ts  parse() — recursive descent con validación semántica
+│   │   │       ├── evaluator.ts evaluate() — ASTNode × Task[] → Task[]
+│   │   │       └── index.ts   evaluatePQL(), parsePQL()
 │   │   ├── hooks/
 │   │   │   ├── useAuth.ts     Estado de autenticación
+│   │   │   ├── useFilters.ts  Filtros visuales + modo query PQL
 │   │   │   ├── useTasks.ts    CRUD de tareas + comentarios
 │   │   │   └── useLabels.ts   Caché global de labels + carga en page load
 │   │   ├── components/
+│   │   │   ├── ui/            Primitivos reutilizables (Button, Field, Input, Modal, SegmentedControl, Select, Textarea)
 │   │   │   ├── Board.tsx      Toolbar + toggle de modo + layout condicional
 │   │   │   ├── Column.tsx     Columna del modo Kanban (drop target)
 │   │   │   ├── Card.tsx       Tarjeta de tarea (draggable)
-│   │   │   ├── ListView.tsx   Vista de lista con grupos colapsables
+│   │   │   ├── FilterBar.tsx  Barra de filtros visual + modo query PQL
+│   │   │   ├── ListView.tsx   Vista de lista con grupos colapsables (Radix Accordion)
 │   │   │   ├── TaskDetail.tsx Modal de detalle de tarea + gestión de labels
 │   │   │   └── TaskModal.tsx  Modal de creación y edición de tarea
 │   │   ├── types.ts           Tipos y constantes del dominio
 │   │   ├── App.tsx            Orquestador + estado de modales
-│   │   └── styles.css         Estilos globales + dark mode
+│   │   └── styles.css         Estilos globales con tokens CSS + dark mode
 │   ├── .env.example           Template de variables de entorno
 │   └── .env.local             Variables locales — gitignoreado
 │
@@ -139,6 +150,65 @@ Cada fila de tarea muestra: título | icono de urgencia (si aplica) | icono de t
 
 Las tareas de cada grupo siguen el mismo orden por fecha que el modo Kanban.
 
+### Filtros
+
+La barra de filtros tiene dos modos accesibles desde el panel expandible (botón "Filtros" / "PQL" en el subheader).
+
+#### Modo visual
+
+Criterios estructurados con selector de campo (react-select), operador (toggle group) y valor. Campos disponibles:
+
+| Campo | Tipo de control |
+|---|---|
+| Nombre / Descripción | Texto libre (substring) |
+| Estado | Chips de selección múltiple |
+| Tipo | Selector (Única / Recurrente) |
+| Fecha de creación / Fecha límite | Selector de fecha con operador (antes de / después de / exacto) |
+| Urgencia | Chips (⚠️ warning / 🔴 alert / 🚨 overdue) |
+| Labels | Input con autocompletado multi-selección |
+| Comentarios | Tiene / No tiene |
+
+Se pueden combinar múltiples criterios. El botón "Filtros" muestra un badge con el número de criterios activos.
+
+#### Modo query PQL (Personal Query Language)
+
+Sintaxis estructurada inspirada en JQL de Jira. Se escribe en un textarea monoespaciado; el tablero se actualiza ~350ms después del último cambio (debounce).
+
+Sintaxis general: `campo OPERADOR valor`  
+Combinaciones: `AND`, `OR`, paréntesis para agrupar.
+
+**Campos y operadores:**
+
+| Campo | Operadores | Valores |
+|---|---|---|
+| `name`, `body` | `IS`, `NOT IS`, `CONTAINS`, `NOT CONTAINS` | `"texto"`, `EMPTY` |
+| `status` | `IS`, `NOT IS`, `IN`, `NOT IN` | `'Backlog'`, `('Backlog', 'Ejecución')` |
+| `kind` | `IS`, `NOT IS` | `'ONE_TIME'`, `'RECURRING'` |
+| `createdAt`, `dueDate`, `nextDate` | `IS`, `NOT IS`, `BEFORE`, `AFTER` | `"31/03/2026"`, `currentDate()` |
+| `labels` | `CONTAINS`, `NOT CONTAINS`, `CONTAINS_ALL`, `HAS`, `NOT HAS` | `"urgente"`, `("a", "b")` |
+| `comments` | `HAS`, `NOT HAS` | — |
+| `urgency` | `IN`, `NOT IN`, `HAS`, `NOT HAS` | `('warning', 'alert', 'overdue')` |
+| `commentsCount()` | `>` `<` `>=` `<=` `=` `!=` | `0`, `1`, `5` |
+| `labelsCount()` | `>` `<` `>=` `<=` `=` `!=` | `0`, `1`, `5` |
+
+**Ejemplos:**
+
+```
+name CONTAINS "Pago" AND status NOT IN ('Finalizado', 'Cancelado')
+dueDate BEFORE currentDate() AND urgency IN ('overdue', 'alert')
+labels CONTAINS_ALL ("cliente", "urgente")
+commentsCount() > 0 AND labelsCount() >= 2
+(status IS 'Backlog' OR status IS 'Planificación') AND dueDate IS EMPTY
+```
+
+Si hay un error de sintaxis, se muestra una alerta roja bajo el textarea y el tablero mantiene el último resultado válido. La tabla de referencia rápida de todos los campos está disponible en el panel bajo un desplegable `<details>`.
+
+#### Leyenda de coincidencias
+
+Cuando hay un filtro activo (en cualquier modo), aparece junto al botón de filtros:
+- **"X coincidencias"** — número de tareas que pasan el filtro
+- **"Sin resultados"** (en rojo) — ninguna tarea coincide
+
 ### Indicadores de urgencia de fechas
 
 Aparecen en tarjetas (Kanban), filas (Lista) y modal de detalle. Solo se muestran si la tarea tiene fecha y su estado no es Pausado, Finalizado ni Cancelado.
@@ -151,7 +221,7 @@ Aparecen en tarjetas (Kanban), filas (Lista) y modal de detalle. Solo se muestra
 
 ### Modales de tarea
 
-Todos los modales se cierran con **Escape** o haciendo click fuera del modal.
+Todos los modales se cierran con **Escape** o haciendo click fuera del modal. El comportamiento lo gestiona Radix Dialog internamente.
 
 #### Nueva tarea
 Se abre desde el botón `+ Nueva tarea` del toolbar o desde el `+` de una columna/grupo (que preselecciona el estado).

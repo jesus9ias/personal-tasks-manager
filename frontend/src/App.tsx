@@ -24,8 +24,13 @@ export default function App() {
   const { tasks, loading, createTask, updateTask, deleteTask, addComment, deleteComment, setTaskLabels } =
     useTasks(authenticated);
   const { allLabelNames, registerLabel } = useLabels(authenticated);
-  const { state: filterState, addCriterion, updateCriterion, removeCriterion, setNameSearch, clearAll, filteredTasks, activeCount } =
-    useFilters();
+  const {
+    state: filterState,
+    addCriterion, updateCriterion, removeCriterion,
+    setNameSearch, clearAll,
+    filteredTasks, activeCount,
+    pqlQuery, pqlError, setPqlQuery, setMode: setFilterMode, onPqlEvaluated,
+  } = useFilters();
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
   const [filterExpanded, setFilterExpanded] = useState(false);
 
@@ -94,6 +99,8 @@ export default function App() {
     }
   }
 
+  const displayedTasks = filteredTasks(tasks);
+
   return (
     <div id="app">
       <header className="app-header">
@@ -116,9 +123,13 @@ export default function App() {
             nameSearch={filterState.nameSearch}
             activeCount={activeCount}
             expanded={filterExpanded}
+            mode={filterState.mode}
+            matchCount={displayedTasks.length}
+            totalCount={tasks.length}
             onNameSearchChange={setNameSearch}
             onToggleExpanded={() => setFilterExpanded((v) => !v)}
             onClearAll={clearAll}
+            onModeChange={setFilterMode}
           />
           <SegmentedControl
             value={mode}
@@ -136,6 +147,13 @@ export default function App() {
           criteria={filterState.criteria}
           allLabelNames={allLabelNames}
           expanded={filterExpanded}
+          mode={filterState.mode}
+          pqlQuery={pqlQuery}
+          pqlError={pqlError}
+          allTasks={tasks}
+          onPqlChange={setPqlQuery}
+          onPqlEvaluated={onPqlEvaluated}
+          onModeChange={setFilterMode}
           onAddCriterion={addCriterion}
           onUpdateCriterion={updateCriterion}
           onRemoveCriterion={removeCriterion}
@@ -144,7 +162,7 @@ export default function App() {
 
       <Board
         mode={mode}
-        tasks={filteredTasks(tasks)}
+        tasks={displayedTasks}
         loading={loading}
         onCardClick={(task) => setModal({ kind: 'detail', task })}
         onAddToColumn={(status) => setModal({ kind: 'new', initialStatus: status })}
