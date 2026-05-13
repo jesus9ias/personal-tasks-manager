@@ -50,6 +50,7 @@ export interface ComparisonNode {
 }
 
 export type PQLField =
+  | 'id'
   | 'name'
   | 'body'
   | 'status'

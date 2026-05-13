@@ -20,6 +20,7 @@ export function Card({ task, onClick }: Props) {
       onClick={onClick}
       style={{ borderLeft: `2px solid ${STATE_COLORS[task.status]}` }}
     >
+      <div className="card-id">{task.id}</div>
       <div className="card-title">{task.name}</div>
       {task.body && <div className="card-desc">{task.body}</div>}
       <div className="card-meta">

@@ -7,6 +7,7 @@ import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import { evaluatePQL } from '../lib/pql';
 
 const FIELD_LABELS: Record<FilterField, string> = {
+  id: 'ID',
   name: 'Nombre',
   body: 'Descripción',
   status: 'Estado',
@@ -19,12 +20,17 @@ const FIELD_LABELS: Record<FilterField, string> = {
 };
 
 const FIELDS: FilterField[] = [
-  'name', 'body', 'status', 'kind', 'createdAt', 'dueOrNextDate', 'urgency', 'labels', 'comments',
+  'id', 'name', 'body', 'status', 'kind', 'createdAt', 'dueOrNextDate', 'urgency', 'labels', 'comments',
 ];
 
 type OpDef = { value: FilterOperator; label: string };
 
 const OPERATORS_BY_FIELD: Record<FilterField, OpDef[]> = {
+  id: [
+    { value: 'exact', label: 'es exactamente' },
+    { value: 'contains', label: 'contiene' },
+    { value: 'not_contains', label: 'no contiene' },
+  ],
   name: [
     { value: 'contains', label: 'contiene' },
     { value: 'not_contains', label: 'no contiene' },
@@ -268,7 +274,7 @@ function CriterionRow({
     if (field === 'comments') return null;
     if (field === 'urgency' && operator === 'has_not') return null;
 
-    if (field === 'name' || field === 'body') {
+    if (field === 'id' || field === 'name' || field === 'body') {
       return (
         <input
           type="text"
@@ -418,6 +424,7 @@ function PQLHelpContent() {
           <tr><th>Campo</th><th>Operadores</th><th>Valores de ejemplo</th></tr>
         </thead>
         <tbody>
+          <tr><td>id</td><td>IS, NOT IS, CONTAINS, NOT CONTAINS</td><td>&quot;abc123&quot;</td></tr>
           <tr><td>name, body</td><td>IS, NOT IS, CONTAINS, NOT CONTAINS</td><td>&quot;texto&quot;, EMPTY</td></tr>
           <tr><td>status</td><td>IS, NOT IS, IN, NOT IN</td><td>&apos;Backlog&apos;, (&apos;Backlog&apos;, &apos;Ejecución&apos;)</td></tr>
           <tr><td>kind</td><td>IS, NOT IS</td><td>&apos;ONE_TIME&apos;, &apos;RECURRING&apos;</td></tr>

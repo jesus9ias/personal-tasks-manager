@@ -48,6 +48,15 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
   const [deleteTaskInput, setDeleteTaskInput] = useState('');
   const [deletingTask, setDeletingTask] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyTaskLink() {
+    const url = `${window.location.origin}/task/${task.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
 
   async function handleDeleteComment(commentId: string) {
     setDeletingCommentId(commentId);
@@ -113,7 +122,12 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
   return (
     <Modal onClose={onClose}>
       <div className="modal-header">
-        <h3>{task.name}</h3>
+        <div>
+          <button className="task-id-label" onClick={copyTaskLink} title="Copiar enlace a esta tarea">
+            {copied ? '✓ Copiado' : task.id}
+          </button>
+          <h3>{task.name}</h3>
+        </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <Button
             variant="danger"

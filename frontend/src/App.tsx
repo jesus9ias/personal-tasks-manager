@@ -7,14 +7,20 @@ import { Board } from './components/Board';
 import { FilterBarControls, FilterCriteriaPanel } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
-import { Button, SegmentedControl } from './components/ui';
+import { Button, Modal, SegmentedControl } from './components/ui';
 import type { Task, TaskStatus, BoardMode, CreateTaskInput, Theme } from './types';
 
 type Modal =
   | { kind: 'none' }
   | { kind: 'new'; initialStatus?: TaskStatus }
   | { kind: 'edit'; task: Task }
-  | { kind: 'detail'; task: Task };
+  | { kind: 'detail'; task: Task }
+  | { kind: 'not_found'; taskId: string };
+
+function parseTaskIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/task\/([^/]+)$/);
+  return match ? match[1] : null;
+}
 
 const BOARD_MODE_KEY = 'board-view-mode';
 const THEME_KEY = 'theme';
@@ -33,6 +39,18 @@ export default function App() {
   } = useFilters();
   const [modal, setModal] = useState<Modal>({ kind: 'none' });
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [pendingTaskId] = useState<string | null>(parseTaskIdFromPath);
+
+  useEffect(() => {
+    if (!pendingTaskId || loading) return;
+    history.replaceState(null, '', '/');
+    const task = tasks.find((t) => t.id === pendingTaskId);
+    if (task) {
+      setModal({ kind: 'detail', task });
+    } else {
+      setModal({ kind: 'not_found', taskId: pendingTaskId });
+    }
+  }, [pendingTaskId, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem(THEME_KEY);
@@ -199,6 +217,15 @@ export default function App() {
           onEdit={() => setModal({ kind: 'edit', task: activeTask })}
           onClose={() => setModal({ kind: 'none' })}
         />
+      )}
+
+      {modal.kind === 'not_found' && (
+        <Modal onClose={() => setModal({ kind: 'none' })} title="Tarea no encontrada">
+          <p style={{ color: 'var(--text-2)', fontSize: '14px', margin: '8px 0 16px' }}>
+            No se encontró ninguna tarea con el ID <code style={{ fontFamily: 'monospace', color: 'var(--text)' }}>{modal.taskId}</code>.
+          </p>
+          <Button onClick={() => setModal({ kind: 'none' })}>Cerrar</Button>
+        </Modal>
       )}
     </div>
   );

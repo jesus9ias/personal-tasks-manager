@@ -4,6 +4,7 @@ import { TokenKind } from './types';
 
 // Maps lowercase identifier to canonical PQLField
 const FIELD_MAP: Record<string, PQLField> = {
+  id:            'id',
   name:          'name',
   body:          'body',
   status:        'status',
@@ -19,6 +20,7 @@ const FIELD_MAP: Record<string, PQLField> = {
 };
 
 const FIELD_OPERATORS: Record<PQLField, PQLOperator[]> = {
+  id:            ['IS', 'NOT_IS', 'EQ', 'NEQ', 'CONTAINS', 'NOT_CONTAINS'],
   name:          ['IS', 'NOT_IS', 'EQ', 'NEQ', 'CONTAINS', 'NOT_CONTAINS'],
   body:          ['IS', 'NOT_IS', 'EQ', 'NEQ', 'CONTAINS', 'NOT_CONTAINS'],
   status:        ['IS', 'NOT_IS', 'EQ', 'NEQ', 'IN', 'NOT_IN'],

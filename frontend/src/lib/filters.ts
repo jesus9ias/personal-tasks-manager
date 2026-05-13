@@ -50,6 +50,8 @@ export function isActive(c: FilterCriterion): boolean {
 export function evaluateCriterion(task: Task, c: FilterCriterion): boolean {
   const { field, operator: op, value: val } = c;
   switch (field) {
+    case 'id':
+      return evalText(task.id, op, val as string);
     case 'name':
       return evalText(task.name, op, val as string);
     case 'body':

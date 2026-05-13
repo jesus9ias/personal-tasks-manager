@@ -77,6 +77,9 @@ function evalComparison(node: ComparisonNode, task: Task): boolean {
   const { field, operator: op, value } = node;
 
   switch (field) {
+    case 'id':
+      return compareText(task.id, op, value);
+
     case 'name':
       return compareText(task.name, op, value);
 

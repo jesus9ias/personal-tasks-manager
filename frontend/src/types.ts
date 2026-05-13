@@ -38,6 +38,7 @@ export interface Task {
 // ── Filter system ────────────────────────────────────────────────────────────
 
 export type FilterField =
+  | 'id'
   | 'name'
   | 'body'
   | 'status'

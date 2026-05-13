@@ -3,6 +3,7 @@ import type { Task, FilterCriterion, FilterField, FilterMode, FilterOperator, Fi
 import { applyFilters, isActive } from '../lib/filters';
 
 const DEFAULT_OPERATOR: Record<FilterField, FilterOperator> = {
+  id: 'exact',
   name: 'contains',
   body: 'contains',
   status: 'is_any_of',
