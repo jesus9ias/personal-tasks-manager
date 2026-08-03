@@ -6,8 +6,8 @@ interface UseTasksResult {
   tasks: Task[];
   loading: boolean;
   error: string | null;
-  createTask: (input: CreateTaskInput) => Promise<void>;
-  updateTask: (id: string, input: UpdateTaskInput) => Promise<void>;
+  createTask: (input: CreateTaskInput) => Promise<Task>;
+  updateTask: (id: string, input: UpdateTaskInput) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
   addComment: (taskId: string, text: string) => Promise<void>;
   deleteComment: (taskId: string, commentId: string) => Promise<void>;
@@ -36,15 +36,17 @@ export function useTasks(authenticated: boolean): UseTasksResult {
     if (authenticated) refresh();
   }, [authenticated, refresh]);
 
-  const createTask = async (input: CreateTaskInput) => {
+  const createTask = async (input: CreateTaskInput): Promise<Task> => {
     const task = await api.createTask(input);
     setTasks((prev) => [...prev, { ...task, labels: task.labels ?? [] }]);
+    return task;
   };
 
-  const updateTask = async (id: string, input: UpdateTaskInput) => {
+  const updateTask = async (id: string, input: UpdateTaskInput): Promise<Task> => {
     const updated = await api.updateTask(id, input);
     // Preserve labels from local state — updateTask API does not return them
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...updated, labels: t.labels } : t)));
+    return updated;
   };
 
   const deleteTask = async (id: string) => {

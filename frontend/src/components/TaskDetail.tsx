@@ -3,6 +3,7 @@ import type { Task, TaskStatus, Label } from '../types';
 import { STATES, STATE_BG, STATE_COLORS, URGENCY, TASK_KIND_LABELS } from '../types';
 import { fmt, dateUrgency, isValidLabelName, LABEL_MAX_LENGTH } from '../lib/utils';
 import { api } from '../lib/api';
+import { useToast } from '../hooks/useToast';
 import { Button, Modal, Textarea } from './ui';
 
 function ExpandableText({ text, className }: { text: string; className?: string }) {
@@ -36,6 +37,7 @@ interface Props {
 }
 
 export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, onChangeStatus, onAddComment, onDeleteComment, onDeleteTask, onEdit, onClose }: Props) {
+  const { toast } = useToast();
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +64,9 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
     setDeletingCommentId(commentId);
     try {
       await onDeleteComment(commentId);
+      toast({ type: 'danger', message: 'Comentario eliminado' });
+    } catch {
+      toast({ type: 'warning', message: 'No se pudo eliminar el comentario' });
     } finally {
       setDeletingCommentId(null);
       setConfirmDeleteCommentId(null);
@@ -91,20 +96,31 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
     const trimmed = name.trim();
     if (!isValidLabelName(trimmed)) return;
     if (labels.some((l) => l.name.toLowerCase() === trimmed.toLowerCase())) return;
-    const label = await api.addLabel(task.id, trimmed);
-    const next = [...labels, label];
-    setLabels(next);
-    onLabelAdded(label.name);
-    onLabelsChange(next);
-    setLabelInput('');
-    setShowSuggestions(false);
+    try {
+      const label = await api.addLabel(task.id, trimmed);
+      const next = [...labels, label];
+      setLabels(next);
+      onLabelAdded(label.name);
+      onLabelsChange(next);
+      setLabelInput('');
+      setShowSuggestions(false);
+      toast({ type: 'success', message: `Label «${label.name}» agregada` });
+    } catch {
+      toast({ type: 'warning', message: 'No se pudo agregar la label' });
+    }
   }
 
   async function handleRemoveLabel(labelId: string) {
-    await api.removeLabel(task.id, labelId);
-    const next = labels.filter((l) => l.id !== labelId);
-    setLabels(next);
-    onLabelsChange(next);
+    const name = labels.find((l) => l.id === labelId)?.name;
+    try {
+      await api.removeLabel(task.id, labelId);
+      const next = labels.filter((l) => l.id !== labelId);
+      setLabels(next);
+      onLabelsChange(next);
+      toast({ type: 'danger', message: `Label «${name}» eliminada` });
+    } catch {
+      toast({ type: 'warning', message: 'No se pudo eliminar la label' });
+    }
   }
 
   async function submitComment() {
@@ -114,6 +130,9 @@ export function TaskDetail({ task, allLabelNames, onLabelAdded, onLabelsChange, 
     try {
       await onAddComment(text);
       if (commentRef.current) commentRef.current.value = '';
+      toast({ type: 'success', message: 'Comentario agregado' });
+    } catch {
+      toast({ type: 'warning', message: 'No se pudo agregar el comentario' });
     } finally {
       setSubmittingComment(false);
     }

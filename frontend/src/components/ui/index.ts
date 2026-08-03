@@ -5,3 +5,4 @@ export { Modal } from './Modal';
 export { SegmentedControl } from './SegmentedControl';
 export { Select } from './Select';
 export { Textarea } from './Textarea';
+export { Toaster } from './Toast';

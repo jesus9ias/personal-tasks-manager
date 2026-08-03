@@ -3,11 +3,12 @@ import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
 import { useLabels } from './hooks/useLabels';
 import { useFilters } from './hooks/useFilters';
+import { ToastProvider, useToast } from './hooks/useToast';
 import { Board } from './components/Board';
 import { FilterBarControls, FilterCriteriaPanel } from './components/FilterBar';
 import { TaskModal } from './components/TaskModal';
 import { TaskDetail } from './components/TaskDetail';
-import { Button, Modal, SegmentedControl } from './components/ui';
+import { Button, Modal, SegmentedControl, Toaster } from './components/ui';
 import type { Task, TaskStatus, BoardMode, CreateTaskInput, Theme } from './types';
 
 type Modal =
@@ -26,6 +27,16 @@ const BOARD_MODE_KEY = 'board-view-mode';
 const THEME_KEY = 'theme';
 
 export default function App() {
+  return (
+    <ToastProvider>
+      <AppInner />
+      <Toaster />
+    </ToastProvider>
+  );
+}
+
+function AppInner() {
+  const { toast } = useToast();
   const { authenticated, loading: authLoading, login, logout } = useAuth();
   const { tasks, loading, createTask, updateTask, deleteTask, addComment, deleteComment, setTaskLabels } =
     useTasks(authenticated);
@@ -190,7 +201,19 @@ export default function App() {
       {modal.kind === 'new' && (
         <TaskModal
           initialStatus={modal.initialStatus}
-          onSave={async (input: CreateTaskInput) => { await createTask(input); }}
+          onSave={async (input: CreateTaskInput) => {
+            try {
+              const created = await createTask(input);
+              toast({
+                type: 'success',
+                message: 'Tarea creada',
+                action: { label: 'Ver tarea', onClick: () => setModal({ kind: 'detail', task: created }) },
+              });
+            } catch {
+              toast({ type: 'warning', message: 'No se pudo crear la tarea' });
+              throw new Error();
+            }
+          }}
           onClose={() => setModal({ kind: 'none' })}
         />
       )}
@@ -198,8 +221,28 @@ export default function App() {
       {modal.kind === 'edit' && activeTask && (
         <TaskModal
           task={activeTask}
-          onSave={async (input) => { await updateTask(activeTask.id, input); }}
-          onDelete={async () => { await deleteTask(activeTask.id); }}
+          onSave={async (input) => {
+            try {
+              const updated = await updateTask(activeTask.id, input);
+              toast({
+                type: 'success',
+                message: 'Tarea actualizada',
+                action: { label: 'Ver tarea', onClick: () => setModal({ kind: 'detail', task: updated }) },
+              });
+            } catch {
+              toast({ type: 'warning', message: 'No se pudo actualizar la tarea' });
+              throw new Error();
+            }
+          }}
+          onDelete={async () => {
+            try {
+              await deleteTask(activeTask.id);
+              toast({ type: 'danger', message: 'Tarea eliminada' });
+            } catch {
+              toast({ type: 'warning', message: 'No se pudo eliminar la tarea' });
+              throw new Error();
+            }
+          }}
           onClose={() => setModal({ kind: 'none' })}
         />
       )}
@@ -213,7 +256,16 @@ export default function App() {
           onChangeStatus={(status) => handleChangeStatus(activeTask.id, status)}
           onAddComment={(text) => addComment(activeTask.id, text)}
           onDeleteComment={(commentId) => deleteComment(activeTask.id, commentId)}
-          onDeleteTask={async () => { await deleteTask(activeTask.id); setModal({ kind: 'none' }); }}
+          onDeleteTask={async () => {
+            try {
+              await deleteTask(activeTask.id);
+              setModal({ kind: 'none' });
+              toast({ type: 'danger', message: 'Tarea eliminada' });
+            } catch {
+              toast({ type: 'warning', message: 'No se pudo eliminar la tarea' });
+              throw new Error();
+            }
+          }}
           onEdit={() => setModal({ kind: 'edit', task: activeTask })}
           onClose={() => setModal({ kind: 'none' })}
         />
